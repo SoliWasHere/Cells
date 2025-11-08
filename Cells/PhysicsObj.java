@@ -304,7 +304,7 @@ public abstract class PhysicsObj {
     
     public void setMass(double mass) {
         if (mass <= 0) {
-            throw new IllegalArgumentException("Mass must be positive");
+            throw new IllegalArgumentException("Mass must be positive : " + mass);
         }
         this.mass = mass;
     }
@@ -314,8 +314,8 @@ public abstract class PhysicsObj {
     }
     
     public void setSize(int size) {
-        if (size <= 0) {
-            throw new IllegalArgumentException("Size must be positive");
+        if (size < 0) {
+            throw new IllegalArgumentException("Size must be positive: " + size);
         }
         this.size = size;
     }

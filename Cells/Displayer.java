@@ -43,7 +43,7 @@ public class Displayer {
         this.buffer = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         this.g2 = buffer.createGraphics();
         this.panelGraphics = panel.getGraphics();
-        this.mouseManager = mouseManager;  // ADD THIS
+        this.mouseManager = mouseManager;
         
         // Initialize camera at center
         this.cameraX = width / 2.0;
@@ -203,17 +203,12 @@ public class Displayer {
     private void drawEntity(PhysicsObj entity) {
         g2.setColor(entity.getColor());
         
-        // Add glow effect for large masses
-        if (entity.getMass() > 100) {
-            drawGlow(entity);
-        }
-        
         drawCircle(entity.getX(), entity.getY(), entity.getSize());
         
         // Draw velocity vector for debugging (if zoomed in)
-        if (zoom > 1.5 && !entity.isStatic()) {
-            drawVelocityVector(entity);
-        }
+        // if (zoom > 1.5 && !entity.isStatic()) {
+        //    drawVelocityVector(entity);
+        //}
     }
     
     /**
