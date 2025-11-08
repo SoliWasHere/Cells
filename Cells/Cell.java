@@ -57,6 +57,22 @@ public class Cell extends PhysicsObj {
         // OPTIMIZATION: Randomize update offset to distribute load
         this.updateSkipCounter = (int)(Math.random() * UPDATE_SKIP_FREQUENCY);
     }
+
+    @Override
+    public void destroy() {
+        SimulationWorld world = SimulationWorld.getInstance();
+        Food a = new Food(this.getX(), this.getY());
+        a.setNutritionalValue(Math.max(0, energy-10));
+        a.setColor(
+            new Color (
+                (int) (255 - a.getNutritionalValue()),
+                255,
+                255
+            )
+        );
+        world.queueAddition(a);
+        super.destroy();
+    }
     
     @Override
     protected void onUpdate() {
