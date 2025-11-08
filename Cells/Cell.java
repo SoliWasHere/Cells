@@ -1,85 +1,125 @@
 package Cells;
 
 import java.awt.Color;
-import java.util.ArrayList;
+import java.util.List;
 
+/**
+ * A living cell that can move, eat food, and eventually reproduce.
+ * Demonstrates complex behavior built on the PhysicsObj foundation.
+ */
 public class Cell extends PhysicsObj {
-    // === GENOME (evolvable traits) ===
-    private double adhesion_strength;
-    private double adhesion_distance;
-    private double motility_speed;
-    private double motility_bias;
-    private double uptake_rate;
-    private double uptake_efficiency;
-    private double leakiness;
-    private double energy_storage_capacity;
-    private double density_motility_modifier;
-    private double density_uptake_modifier;
-    private double adhesion_response_sensitivity;
-    private double reproduction_threshold;
-    private double[] signal_point;
-    private double signal_strength;
-    private double senescence_rate;
-    private double longevity_gene;
-    private double division_cost_modifier;
-    private double mutation_rate;
-    private double[] resource_affinity;  // for multiple resource types
+    // Behavioral parameters (future: make these evolvable)
+    private static final double FOOD_DETECTION_RADIUS = 500.0;
+    private static final double MOVEMENT_FORCE = 10.0;
+    private static final double EATING_DISTANCE = 1.0; // Distance threshold for eating
     
-    // === STATE (changes every tick) ===
+    // Cell state
     private double energy;
     private int age;
-
+    private Food targetFood;
+    
+    /**
+     * Create a new cell at the specified position.
+     */
     public Cell(double x, double y) {
         super(x, y);
-        this.DAMPING_FACTOR = 0.95; // Cells have higher damping by default
+        this.dampingFactor = 0.95; // Cells move through "fluid"
+        this.energy = 100.0;
+        this.age = 0;
+        this.targetFood = null;
+        setColor(Color.MAGENTA);
     }
-
-    public void getCollision(PhysicsObj other, ArrayList<PhysicsObj> cells) {
-        if (other != this) {
-            double deltaX = other.getX() - this.getX();
-            double deltaY = other.getY() - this.getY();
-            double distance = Math.hypot(deltaX, deltaY);
-            if (distance < (this.getSize()/2 + other.getSize()/2)) {
-                other.removeSelf(cells);
-            }
+    
+    @Override
+    protected void onUpdate() {
+        age++;
+        
+        // Search for food
+        findAndChaseFood();
+        
+        // Try to eat if close to target
+        if (targetFood != null) {
+            tryEatFood(targetFood);
+        }
+        
+        // Future: reproduction, death, etc.
+    }
+    
+    /**
+     * Find the closest food and move towards it.
+     */
+    private void findAndChaseFood() {
+        targetFood = findClosestFood();
+        
+        if (targetFood != null) {
+            moveTowards(targetFood);
         }
     }
-
-    public void update(double dt, Matrix matrix, ArrayList<PhysicsObj> cells) {
-        super.update(dt, matrix, cells);
-        // Update cell-specific logic here
-        PhysicsObj a = this.moveTowardsFood(matrix);
-        if (a != null) {
-            this.getCollision(a, cells);
-        }
-    }
-
-    public void moveTowards(double targetX, double targetY, double speed) {
-        double deltaX = targetX - this.getX();
-        double deltaY = targetY - this.getY();
-        double[] normalized = MathFunctions.normalizeVector(deltaX, deltaY);
-        this.applyForce(normalized[0] * speed, normalized[1] * speed);
-    }
-
-    public PhysicsObj moveTowardsFood(Matrix matrix) {
-        double shortestDistance = Double.MAX_VALUE;
-        PhysicsObj closestCell = null;
-        for (PhysicsObj f : this.getCellsInRadius(500, matrix)) {
-            if (f instanceof food) {
-                double dist = Math.hypot(f.getX() - this.getX(), f.getY() - this.getY());
-                if (dist < shortestDistance) {
-                    shortestDistance = dist;
-                    closestCell = f;
+    
+    /**
+     * Find the closest food within detection radius.
+     */
+    private Food findClosestFood() {
+        List<PhysicsObj> nearby = getCellsInRadius(FOOD_DETECTION_RADIUS);
+        
+        Food closest = null;
+        double closestDistance = Double.MAX_VALUE;
+        
+        for (PhysicsObj obj : nearby) {
+            if (obj instanceof Food) {
+                double distance = getDistanceTo(obj);
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closest = (Food) obj;
                 }
             }
         }
-        if (closestCell != null) {
-            moveTowards(closestCell.getX(), closestCell.getY(), 10);
-            //closestCell.setColor(Color.GREEN); // Highlight the food being targeted
-            //closestCell.setSize(50);
-            return closestCell;
-        }
-        return null;
+        
+        return closest;
     }
     
+    /**
+     * Move towards a target entity.
+     */
+    private void moveTowards(PhysicsObj target) {
+        Vector2D direction = getDirectionTo(target);
+        applyForce(direction.scale(MOVEMENT_FORCE));
+    }
+    
+    /**
+     * Attempt to eat food if close enough.
+     */
+    private void tryEatFood(Food food) {
+        if (isCollidingWith(food)) {
+            // Consume the food
+            energy += food.getNutritionalValue();
+            food.destroy();
+            targetFood = null;
+            
+            // Visual feedback
+            setColor(Color.GREEN);
+            
+            // Reset color after a moment (in real implementation, use a timer)
+            // For now, we'll just keep it simple
+        } else if (getDistanceTo(food) > FOOD_DETECTION_RADIUS) {
+            // Lost track of food
+            targetFood = null;
+        }
+    }
+    
+    // === Getters ===
+    
+    public double getEnergy() {
+        return energy;
+    }
+    
+    public int getAge() {
+        return age;
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("Cell[pos=(%.1f, %.1f), energy=%.1f, age=%d]",
+            getX(), getY(), energy, age);
+    }
 }

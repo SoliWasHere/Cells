@@ -1,19 +1,27 @@
 package Cells;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Spatial grid system for efficient cell management and lookup.
- * Pure spatial indexing - cells handle their own physics.
+ * Spatial grid system for efficient entity lookup.
+ * Divides the world into grid cells for O(1) spatial queries.
  */
 public class Matrix {
-    private MatrixCell[][] grid;
-    private int cellSize;
-    private int gridWidth;
-    private int gridHeight;
-    private int totalWidth;
-    private int totalHeight;
+    private final MatrixCell[][] grid;
+    private final int cellSize;
+    private final int gridWidth;
+    private final int gridHeight;
+    private final int totalWidth;
+    private final int totalHeight;
     
+    /**
+     * Create a new spatial grid.
+     * 
+     * @param cellSize Size of each grid cell in pixels
+     * @param gridWidth Number of grid cells horizontally
+     * @param gridHeight Number of grid cells vertically
+     */
     public Matrix(int cellSize, int gridWidth, int gridHeight) {
         this.cellSize = cellSize;
         this.gridWidth = gridWidth;
@@ -31,89 +39,60 @@ public class Matrix {
     }
     
     /**
-     * Inserts a cell into the matrix at its current position.
+     * Insert an entity into the spatial grid.
      */
-    public boolean insertCell(PhysicsObj cell) {
-        // DON'T wrap coordinates here - cell position should be preserved
-        // Just get the grid position based on current coordinates
-        double x = cell.getX();
-        double y = cell.getY();
-        
-        // Wrap only for grid calculation
-        x = wrapCoordinate(x, totalWidth);
-        y = wrapCoordinate(y, totalHeight);
+    public void insertCell(PhysicsObj entity) {
+        double x = wrapCoordinate(entity.getX(), totalWidth);
+        double y = wrapCoordinate(entity.getY(), totalHeight);
         
         int gridX = getGridX(x);
         int gridY = getGridY(y);
         
         MatrixCell matrixCell = grid[gridX][gridY];
-        matrixCell.addCell(cell);
-        cell.setCurrentMatrixCell(matrixCell);
-        return true;
-    }
-
-        public boolean insertCell(Cell cell) {
-        // DON'T wrap coordinates here - cell position should be preserved
-        // Just get the grid position based on current coordinates
-        double x = cell.getX();
-        double y = cell.getY();
-        
-        // Wrap only for grid calculation
-        x = wrapCoordinate(x, totalWidth);
-        y = wrapCoordinate(y, totalHeight);
-        
-        int gridX = getGridX(x);
-        int gridY = getGridY(y);
-        
-        MatrixCell matrixCell = grid[gridX][gridY];
-        matrixCell.addCell(cell);
-        cell.setCurrentMatrixCell(matrixCell);
-        return true;
+        matrixCell.addCell(entity);
+        entity.setCurrentMatrixCell(matrixCell);
     }
     
     /**
-     * Updates all cells' grid positions based on their current coordinates.
-     * Call this after physics updates to keep spatial index accurate.
+     * Update an entity's position in the grid after it moves.
      */
-    public void updateCellGrid(PhysicsObj cell) {
-        MatrixCell oldMatrixCell = cell.getCurrentMatrixCell();
-        if (oldMatrixCell == null) return;
+    public void updateCellGrid(PhysicsObj entity) {
+        MatrixCell oldCell = entity.getCurrentMatrixCell();
+        if (oldCell == null) return;
         
-        // Wrap coordinates for grid calculation
-        double wrappedX = wrapCoordinate(cell.getX(), totalWidth);
-        double wrappedY = wrapCoordinate(cell.getY(), totalHeight);
+        // Calculate new grid position
+        double wrappedX = wrapCoordinate(entity.getX(), totalWidth);
+        double wrappedY = wrapCoordinate(entity.getY(), totalHeight);
         
         int newGridX = getGridX(wrappedX);
         int newGridY = getGridY(wrappedY);
         
-        // If cell moved to a different grid square, update tracking
-        if (oldMatrixCell.getGridX() != newGridX || oldMatrixCell.getGridY() != newGridY) {
-            oldMatrixCell.removeCell(cell);
+        // Move to new cell if changed
+        if (oldCell.getGridX() != newGridX || oldCell.getGridY() != newGridY) {
+            oldCell.removeCell(entity);
             
-            MatrixCell newMatrixCell = grid[newGridX][newGridY];
-            newMatrixCell.addCell(cell);
-            cell.setCurrentMatrixCell(newMatrixCell);
+            MatrixCell newCell = grid[newGridX][newGridY];
+            newCell.addCell(entity);
+            entity.setCurrentMatrixCell(newCell);
         }
     }
     
     /**
-     * Removes a cell from the matrix.
+     * Remove an entity from the spatial grid.
      */
-    public boolean removeCell(PhysicsObj cell) {
-        MatrixCell matrixCell = cell.getCurrentMatrixCell();
+    public void removeCell(PhysicsObj entity) {
+        MatrixCell matrixCell = entity.getCurrentMatrixCell();
         if (matrixCell != null) {
-            matrixCell.removeCell(cell);
-            cell.setCurrentMatrixCell(null);
-            return true;
+            matrixCell.removeCell(entity);
+            entity.setCurrentMatrixCell(null);
         }
-        return false;
     }
     
     /**
-     * Gets all cells in the entire matrix.
+     * Get all entities in the world.
      */
-    public ArrayList<PhysicsObj> getAllCells() {
-        ArrayList<PhysicsObj> allCells = new ArrayList<>();
+    public List<PhysicsObj> getAllCells() {
+        List<PhysicsObj> allCells = new ArrayList<>();
         for (int x = 0; x < gridWidth; x++) {
             for (int y = 0; y < gridHeight; y++) {
                 allCells.addAll(grid[x][y].getCells());
@@ -123,7 +102,34 @@ public class Matrix {
     }
     
     /**
-     * Wrap a coordinate to stay within bounds [0, max).
+     * Get a grid cell at the specified grid coordinates (with wrapping).
+     */
+    public MatrixCell getMatrixCell(int gridX, int gridY) {
+        gridX = wrapGridCoordinate(gridX, gridWidth);
+        gridY = wrapGridCoordinate(gridY, gridHeight);
+        return grid[gridX][gridY];
+    }
+    
+    /**
+     * Convert world X coordinate to grid X index.
+     */
+    public int getGridX(double x) {
+        x = wrapCoordinate(x, totalWidth);
+        int gridX = (int) (x / cellSize);
+        return Math.max(0, Math.min(gridWidth - 1, gridX));
+    }
+    
+    /**
+     * Convert world Y coordinate to grid Y index.
+     */
+    public int getGridY(double y) {
+        y = wrapCoordinate(y, totalHeight);
+        int gridY = (int) (y / cellSize);
+        return Math.max(0, Math.min(gridHeight - 1, gridY));
+    }
+    
+    /**
+     * Wrap a coordinate to stay within [0, max).
      */
     private double wrapCoordinate(double coord, int max) {
         while (coord < 0) coord += max;
@@ -132,82 +138,18 @@ public class Matrix {
     }
     
     /**
-     * Get grid X index from world X coordinate.
-     * Handles wrapping correctly.
+     * Wrap a grid coordinate with modulo arithmetic.
      */
-    public int getGridX(double x) {
-        // Make sure x is positive and wrapped
-        x = wrapCoordinate(x, totalWidth);
-        int gridX = (int) (x / cellSize);
-        // Clamp to valid range (should already be valid after wrapping)
-        if (gridX < 0) gridX = 0;
-        if (gridX >= gridWidth) gridX = gridWidth - 1;
-        return gridX;
+    private int wrapGridCoordinate(int coord, int max) {
+        return ((coord % max) + max) % max;
     }
     
-    /**
-     * Get grid Y index from world Y coordinate.
-     * Handles wrapping correctly.
-     */
-    public int getGridY(double y) {
-        // Make sure y is positive and wrapped
-        y = wrapCoordinate(y, totalHeight);
-        int gridY = (int) (y / cellSize);
-        // Clamp to valid range (should already be valid after wrapping)
-        if (gridY < 0) gridY = 0;
-        if (gridY >= gridHeight) gridY = gridHeight - 1;
-        return gridY;
-    }
+    // === Getters ===
     
-    public MatrixCell getMatrixCell(int gridX, int gridY) {
-        // Wrap grid coordinates
-        gridX = ((gridX % gridWidth) + gridWidth) % gridWidth;
-        gridY = ((gridY % gridHeight) + gridHeight) % gridHeight;
-        return grid[gridX][gridY];
-    }
-    
-    // Getters
     public int getCellSize() { return cellSize; }
     public int getGridWidth() { return gridWidth; }
     public int getGridHeight() { return gridHeight; }
     public int getTotalWidth() { return totalWidth; }
     public int getTotalHeight() { return totalHeight; }
     public MatrixCell[][] getGrid() { return grid; }
-}
-
-/**
- * Container for cells occupying the same grid square.
- */
-class MatrixCell {
-    private ArrayList<PhysicsObj> cells;
-    private int gridX;
-    private int gridY;
-    
-    public MatrixCell(int gridX, int gridY) {
-        this.gridX = gridX;
-        this.gridY = gridY;
-        this.cells = new ArrayList<>();
-    }
-    
-    public void addCell(PhysicsObj cell) {
-        // Remove first to avoid duplicates (in case of fast movement)
-        cells.remove(cell);
-        cells.add(cell);
-    }
-
-    public void add(Cell a) {
-        cells.remove(a);
-        cells.add(a);
-    }
-    
-    public void removeCell(PhysicsObj cell) {
-        cells.remove(cell);
-    }
-    
-    public ArrayList<PhysicsObj> getCells() {
-        return cells;
-    }
-    
-    public int getGridX() { return gridX; }
-    public int getGridY() { return gridY; }
 }

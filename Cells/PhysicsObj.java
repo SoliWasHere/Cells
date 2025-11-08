@@ -2,239 +2,199 @@ package Cells;
 
 import java.awt.Color;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Represents an entity with physics properties and spatial awareness.
- * Combines physics simulation with spatial grid optimization.
+ * Base class for all entities in the physics simulation.
+ * Handles position, velocity, forces, and spatial queries.
  */
-public class PhysicsObj {
-    // Physics constants
-    public double G = 10.0;
-    public double MAX_VELOCITY = 10000;
-    public double DAMPING_FACTOR = 1.00;
+public abstract class PhysicsObj {
+    // Physics constants (can be overridden by subclasses)
+    protected double maxVelocity = 10000.0;
+    protected double dampingFactor = 1.0;
     
-    // Position (pixel coordinates)
+    // Position and motion
     private double x;
     private double y;
-    
-    // Velocity
-    private double dx;
-    private double dy;
-    
-    // Acceleration
-    private double ax;
-    private double ay;
+    private double velocityX;
+    private double velocityY;
+    private double accelerationX;
+    private double accelerationY;
     
     // Physical properties
-    private double mass = 1.0;
-    private Color color = Color.WHITE;
-    private int size = 5;
-    private boolean isStatic = false;
+    private double mass;
+    private Color color;
+    private int size;
+    private boolean isStatic;
     
     // Spatial tracking
     private MatrixCell currentMatrixCell;
     
+    /**
+     * Create a new physics object at the specified position.
+     */
     public PhysicsObj(double x, double y) {
         this.x = x;
         this.y = y;
-        this.dx = 0;
-        this.dy = 0;
-        this.ax = 0;
-        this.ay = 0;
-    }
-    
-    // --- Position/Velocity Getters ---
-    public double getX() { return x; }
-    public double getY() { return y; }
-    public double getDX() { return dx; }
-    public double getDY() { return dy; }
-    public double getAX() { return ax; }
-    public double getAY() { return ay; }
-    
-    // --- Property Getters ---
-    public double getMass() { return mass; }
-    public Color getColor() { return color; }
-    public int getSize() { return size; }
-    public boolean isStatic() { return isStatic; }
-    public MatrixCell getCurrentMatrixCell() { return currentMatrixCell; }
-    
-    // --- Setters ---
-    public void setX(double x) { this.x = x; }
-    public void setY(double y) { this.y = y; }
-    public void setPosition(double x, double y) {
-        this.x = x;
-        this.y = y;
-    }
-    public void setVelocity(double dx, double dy) {
-        this.dx = dx;
-        this.dy = dy;
-    }
-    public void setAcceleration(double ax, double ay) {
-        this.ax = ax;
-        this.ay = ay;
-    }
-    public void setMass(double mass) {
-        if (mass <= 0) throw new IllegalArgumentException("Mass must be positive");
-        this.mass = mass;
-    }
-    public void setColor(Color color) { this.color = color; }
-    public void setSize(int size) {
-        if (size <= 0) throw new IllegalArgumentException("Size must be positive");
-        this.size = size;
-    }
-    public void setStatic(boolean isStatic) { this.isStatic = isStatic; }
-    public void setCurrentMatrixCell(MatrixCell matrixCell) {
-        this.currentMatrixCell = matrixCell;
-    }
-    
-    // --- Physics Methods ---
-    
-    /**
-     * Apply external force to this cell.
-     */
-    public void applyForce(double fx, double fy) {
-        this.ax += fx / this.mass;
-        this.ay += fy / this.mass;
-    }
-    
-    /**
-     * Apply gravitational attraction from another cell.
-     */
-    public void applyGravity(PhysicsObj other, Matrix matrix) {
-        double dx = other.x - this.x;
-        double dy = other.y - this.y;
-        
-        // Consider wrapping for shortest path
-        int totalWidth = matrix.getTotalWidth();
-        int totalHeight = matrix.getTotalHeight();
-        
-        if (Math.abs(dx) > totalWidth / 2.0) {
-            dx = dx > 0 ? dx - totalWidth : dx + totalWidth;
-        }
-        if (Math.abs(dy) > totalHeight / 2.0) {
-            dy = dy > 0 ? dy - totalHeight : dy + totalHeight;
-        }
-        
-        double distance = Math.sqrt(dx * dx + dy * dy);
-        
-        // Avoid division by very small distances
-        if (distance < 10) distance = 10;
-        
-        double force = (G * this.mass * other.mass) / (distance * distance);
-        double angle = Math.atan2(dy, dx);
-        double fx = Math.cos(angle) * force;
-        double fy = Math.sin(angle) * force;
-        
-        this.applyForce(fx, fy);
-    }
-    
-    /**
-     * Apply velocity limiting and damping.
-     */
-    public void applyVelocityLimiting() {
-        double speed = Math.sqrt(dx * dx + dy * dy);
-        
-        // Apply damping
-        dx *= DAMPING_FACTOR;
-        dy *= DAMPING_FACTOR;
-        
-        // Cap maximum velocity
-        if (speed > MAX_VELOCITY) {
-            double scale = MAX_VELOCITY / speed;
-            dx *= scale;
-            dy *= scale;
-        }
-    }
-    
-    /**
-     * Update physics using symplectic Euler integration.
-     */
-    public void removeSelf(ArrayList<PhysicsObj> objects) {
-        if (currentMatrixCell != null) {
-            currentMatrixCell.removeCell(this);
-            currentMatrixCell = null;
-        }
-
-        objects.remove(this);
-    }
-
-    public void update(double dt, Matrix matrix, ArrayList<PhysicsObj> cells) {
-    // In your update method:
-
-    /* 
-    if (this.getCellsInRadius(50, matrix).size() > 0) {
-        this.color = Color.RED;
-    } else {
+        this.velocityX = 0;
+        this.velocityY = 0;
+        this.accelerationX = 0;
+        this.accelerationY = 0;
+        this.mass = 1.0;
         this.color = Color.WHITE;
+        this.size = 5;
+        this.isStatic = false;
     }
-    */
-
+    
+    // === Lifecycle Methods (subclasses can override) ===
+    
+    /**
+     * Called when this entity is added to the world.
+     */
+    protected void onAddedToWorld() {
+        // Override in subclasses if needed
+    }
+    
+    /**
+     * Called when this entity is removed from the world.
+     */
+    protected void onRemovedFromWorld() {
+        // Override in subclasses if needed
+    }
+    
+    /**
+     * Update this entity's physics and behavior.
+     * Called every simulation tick.
+     */
+    public void update() {
         if (isStatic) {
-            this.ax = 0;
-            this.ay = 0;
+            accelerationX = 0;
+            accelerationY = 0;
             return;
         }
         
-        // 1. Update velocity based on current acceleration
-        this.dx += this.ax * dt;
-        this.dy += this.ay * dt;
+        SimulationWorld world = SimulationWorld.getInstance();
+        double dt = world.getTimeStep();
         
+        // Update velocity from acceleration
+        velocityX += accelerationX * dt;
+        velocityY += accelerationY * dt;
+        
+        // Apply damping and velocity limiting
         applyVelocityLimiting();
         
-        // 2. Update position based on new velocity
-        this.x += this.dx * dt;
-        this.y += this.dy * dt;
+        // Update position from velocity
+        x += velocityX * dt;
+        y += velocityY * dt;
         
-        // 3. Wrap position (toroidal space)
-        int totalWidth = matrix.getTotalWidth();
-        int totalHeight = matrix.getTotalHeight();
+        // Wrap position (toroidal world)
+        x = world.wrapX(x);
+        y = world.wrapY(y);
         
-        while (this.x < 0) this.x += totalWidth;
-        while (this.x >= totalWidth) this.x -= totalWidth;
-        while (this.y < 0) this.y += totalHeight;
-        while (this.y >= totalHeight) this.y -= totalHeight;
+        // Reset acceleration for next frame
+        accelerationX = 0;
+        accelerationY = 0;
         
-        // 4. Reset acceleration for next frame
-        this.ax = 0;
-        this.ay = 0;
+        // Allow subclasses to add custom behavior
+        onUpdate();
     }
     
     /**
-     * Returns all cells within a specified radius using efficient spatial lookup.
-     * Uses the matrix grid system for optimized searching with toroidal wrapping.
+     * Override this method for custom update logic.
      */
-    public ArrayList<PhysicsObj> getCellsInRadius(double radius, Matrix matrix) {
-        ArrayList<PhysicsObj> nearbyCreatures = new ArrayList<>();
+    protected void onUpdate() {
+        // Override in subclasses
+    }
+    
+    // === Force Application ===
+    
+    /**
+     * Apply a force to this object (F = ma, so a = F/m).
+     */
+    public void applyForce(double fx, double fy) {
+        accelerationX += fx / mass;
+        accelerationY += fy / mass;
+    }
+    
+    /**
+     * Apply a force in the direction of a vector.
+     */
+    public void applyForce(Vector2D force) {
+        applyForce(force.x, force.y);
+    }
+    
+    /**
+     * Apply gravitational attraction from another object.
+     */
+    public void applyGravityFrom(PhysicsObj other) {
+        SimulationWorld world = SimulationWorld.getInstance();
         
-        if (currentMatrixCell == null || matrix == null) {
-            return nearbyCreatures;
+        // Get shortest path considering wrapping
+        Vector2D delta = world.getWrappedDelta(x, y, other.x, other.y);
+        double distance = delta.magnitude();
+        
+        // Avoid singularities
+        if (distance < 10) distance = 10;
+        
+        // Calculate gravitational force: F = G * m1 * m2 / r^2
+        double forceMagnitude = (world.getGravityConstant() * mass * other.mass) / (distance * distance);
+        
+        // Apply force in direction of other object
+        Vector2D direction = delta.normalize();
+        applyForce(direction.scale(forceMagnitude));
+    }
+    
+    /**
+     * Apply velocity damping and enforce maximum velocity.
+     */
+    private void applyVelocityLimiting() {
+        // Apply damping
+        velocityX *= dampingFactor;
+        velocityY *= dampingFactor;
+        
+        // Cap maximum velocity
+        double speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+        if (speed > maxVelocity) {
+            double scale = maxVelocity / speed;
+            velocityX *= scale;
+            velocityY *= scale;
+        }
+    }
+    
+    // === Spatial Queries ===
+    
+    /**
+     * Get all entities within a specified radius.
+     * Uses spatial partitioning for efficiency.
+     */
+    public List<PhysicsObj> getCellsInRadius(double radius) {
+        List<PhysicsObj> nearby = new ArrayList<>();
+        
+        if (currentMatrixCell == null) {
+            return nearby;
         }
         
-        // Calculate which matrix cells to check based on radius
+        SimulationWorld world = SimulationWorld.getInstance();
+        Matrix matrix = world.getMatrix();
+        
+        // Calculate grid cells to check
         int cellSize = matrix.getCellSize();
         int cellRadius = (int) Math.ceil(radius / cellSize);
         
-        // Get current grid position from our MatrixCell (it knows its position)
         int currentGridX = currentMatrixCell.getGridX();
         int currentGridY = currentMatrixCell.getGridY();
         
-        // Check all matrix cells within the grid radius
+        // Check all grid cells within radius
         for (int dx = -cellRadius; dx <= cellRadius; dx++) {
             for (int dy = -cellRadius; dy <= cellRadius; dy++) {
-                // Calculate target grid position with proper wrapping
-                int checkX = currentGridX + dx;
-                int checkY = currentGridY + dy;
-                
-                // Get the matrix cell (getMatrixCell handles wrapping)
-                MatrixCell cell = matrix.getMatrixCell(checkX, checkY);
+                MatrixCell cell = matrix.getMatrixCell(currentGridX + dx, currentGridY + dy);
                 
                 if (cell != null) {
-                    // Check each creature in this matrix cell
                     for (PhysicsObj other : cell.getCells()) {
                         if (other != this) {
-                            double distance = getDistanceToWithWrapping(other, matrix);
+                            double distance = getDistanceTo(other);
                             if (distance <= radius) {
-                                nearbyCreatures.add(other);
+                                nearby.add(other);
                             }
                         }
                     }
@@ -242,35 +202,14 @@ public class PhysicsObj {
             }
         }
         
-        return nearbyCreatures;
+        return nearby;
     }
-
+    
     /**
-     * Calculates Euclidean distance to another cell with toroidal wrapping.
+     * Get all entities in the same grid cell.
      */
-    public double getDistanceToWithWrapping(PhysicsObj other, Matrix matrix) {
-        double dx = Math.abs(this.x - other.x);
-        double dy = Math.abs(this.y - other.y);
-        
-        int totalWidth = matrix.getTotalWidth();
-        int totalHeight = matrix.getTotalHeight();
-        
-        // Consider wrapping for shorter distance
-        if (dx > totalWidth / 2.0) {
-            dx = totalWidth - dx;
-        }
-        if (dy > totalHeight / 2.0) {
-            dy = totalHeight - dy;
-        }
-        
-        return Math.sqrt(dx * dx + dy * dy);
-    }
-
-    /**
-     * Returns all OTHER cells in the same grid square (for debugging).
-     */
-    public ArrayList<PhysicsObj> getCellsInSameGridSquare() {
-        ArrayList<PhysicsObj> sameCells = new ArrayList<>();
+    public List<PhysicsObj> getCellsInSameGrid() {
+        List<PhysicsObj> sameCells = new ArrayList<>();
         
         if (currentMatrixCell != null) {
             for (PhysicsObj other : currentMatrixCell.getCells()) {
@@ -282,14 +221,116 @@ public class PhysicsObj {
         
         return sameCells;
     }
-
-    public void update() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'update'");
+    
+    /**
+     * Calculate wrapped distance to another entity.
+     */
+    public double getDistanceTo(PhysicsObj other) {
+        SimulationWorld world = SimulationWorld.getInstance();
+        return world.getWrappedDistance(x, y, other.x, other.y);
     }
-
-    public void update(int dt, Matrix matrix) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'update'");
+    
+    /**
+     * Get wrapped direction vector to another entity.
+     */
+    public Vector2D getDirectionTo(PhysicsObj other) {
+        SimulationWorld world = SimulationWorld.getInstance();
+        Vector2D delta = world.getWrappedDelta(x, y, other.x, other.y);
+        return delta.normalize();
+    }
+    
+    /**
+     * Check if this entity is colliding with another.
+     */
+    public boolean isCollidingWith(PhysicsObj other) {
+        double distance = getDistanceTo(other);
+        double collisionDistance = (size + other.size) / 2.0;
+        return distance < collisionDistance;
+    }
+    
+    // === Removal ===
+    
+    /**
+     * Remove this entity from the world.
+     */
+    public void destroy() {
+        SimulationWorld.getInstance().queueRemoval(this);
+    }
+    
+    // === Getters ===
+    
+    public double getX() { return x; }
+    public double getY() { return y; }
+    public double getVelocityX() { return velocityX; }
+    public double getVelocityY() { return velocityY; }
+    public double getAccelerationX() { return accelerationX; }
+    public double getAccelerationY() { return accelerationY; }
+    public double getMass() { return mass; }
+    public Color getColor() { return color; }
+    public int getSize() { return size; }
+    public boolean isStatic() { return isStatic; }
+    public MatrixCell getCurrentMatrixCell() { return currentMatrixCell; }
+    
+    /**
+     * Get velocity as a vector.
+     */
+    public Vector2D getVelocity() {
+        return new Vector2D(velocityX, velocityY);
+    }
+    
+    /**
+     * Get current speed (magnitude of velocity).
+     */
+    public double getSpeed() {
+        return Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+    }
+    
+    // === Setters ===
+    
+    public void setPosition(double x, double y) {
+        this.x = x;
+        this.y = y;
+    }
+    
+    public void setVelocity(double vx, double vy) {
+        this.velocityX = vx;
+        this.velocityY = vy;
+    }
+    
+    public void setVelocity(Vector2D velocity) {
+        this.velocityX = velocity.x;
+        this.velocityY = velocity.y;
+    }
+    
+    public void setMass(double mass) {
+        if (mass <= 0) {
+            throw new IllegalArgumentException("Mass must be positive");
+        }
+        this.mass = mass;
+    }
+    
+    public void setColor(Color color) {
+        this.color = color;
+    }
+    
+    public void setSize(int size) {
+        if (size <= 0) {
+            throw new IllegalArgumentException("Size must be positive");
+        }
+        this.size = size;
+    }
+    
+    public void setStatic(boolean isStatic) {
+        this.isStatic = isStatic;
+    }
+    
+    public void setCurrentMatrixCell(MatrixCell matrixCell) {
+        this.currentMatrixCell = matrixCell;
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("%s[pos=(%.1f, %.1f), vel=(%.1f, %.1f), mass=%.1f]",
+            getClass().getSimpleName(), x, y, velocityX, velocityY, mass);
     }
 }
