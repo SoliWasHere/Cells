@@ -1,3 +1,5 @@
+//SIMULATIONWORLD.JAVA
+
 package Cells;
 
 import java.util.ArrayList;
@@ -111,6 +113,7 @@ public class SimulationWorld {
         List<PhysicsObj> snapshot = new ArrayList<>(entities);
         
         // Apply inter-entity forces (gravity)
+        /*
         for (PhysicsObj entity : snapshot) {
             if (entity.isStatic()) continue;
             
@@ -122,6 +125,7 @@ public class SimulationWorld {
                 }
             }
         }
+            */
         
         // Update all entities
         for (PhysicsObj entity : snapshot) {

@@ -1,3 +1,5 @@
+//ENTITYTOOLTIP.JAVA
+
 package Cells;
 
 import java.awt.*;

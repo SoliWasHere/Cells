@@ -1,3 +1,5 @@
+//MAIN.JAVA
+
 package Cells;
 
 import java.awt.Color;
@@ -27,7 +29,7 @@ public class Main {
     
     public static void main(String[] args) {
         // Initialize simulation world
-        SimulationWorld.initialize(50, 20, 20);
+        SimulationWorld.initialize(50, 50, 50);
         SimulationWorld world = SimulationWorld.getInstance();
         
         // Setup managers

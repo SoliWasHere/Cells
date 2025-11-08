@@ -1,3 +1,5 @@
+//CELL.JAVA
+
 package Cells;
 
 import java.awt.Color;
@@ -63,7 +65,7 @@ public class Cell extends PhysicsObj {
         if (steeringVector.magnitude() > 0.001) {
             Vector2D direction = steeringVector.normalize();
             applyForce(direction.scale(movementForce));
-            energy -= movementForce * 0.1; // Energy cost for moving
+            energy -= movementForce * 0.01; // Energy cost for moving
         }
         
         // Try to eat nearby food

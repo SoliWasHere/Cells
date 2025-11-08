@@ -1,3 +1,5 @@
+//MOUSEMANAGER.JAVA
+
 package Cells;
 
 import java.awt.event.MouseEvent;

@@ -1,3 +1,5 @@
+//DISPLAYER.JAVA
+
 package Cells;
 
 import java.awt.*;
@@ -36,8 +38,8 @@ public class Displayer {
      * Create a new displayer for the simulation.
      */
     public Displayer(Matrix matrix, MouseManager mouseManager) {
-        int width = matrix.getTotalWidth();
-        int height = matrix.getTotalHeight();
+        int width = Math.min(1000, matrix.getTotalWidth());
+        int height = Math.min(1000, matrix.getTotalHeight());
         
         this.panel = new DrawingPanel(width, height);
         this.buffer = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
