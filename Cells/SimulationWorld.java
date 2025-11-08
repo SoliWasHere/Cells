@@ -1,4 +1,4 @@
-//SIMULATIONWORLD.JAVA
+//SIMULATIONWORLD.JAVA (ULTRA-OPTIMIZED)
 
 package Cells;
 
@@ -7,8 +7,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Central simulation state container.
- * Provides global access to world parameters and state without constant parameter passing.
+ * ULTRA-OPTIMIZED: Minimal gravity calculations.
  */
 public class SimulationWorld {
     private static SimulationWorld instance;
@@ -21,10 +20,18 @@ public class SimulationWorld {
     private final List<PhysicsObj> pendingRemovals;
     private final Random random;
     
-    // Simulation parameters
     private double timeStep;
     private double gravityConstant;
     private boolean paused;
+    
+    private int frameCount = 0;
+    
+    // OPTIMIZATION: Cache static gravity sources
+    private List<PhysicsObj> gravitySources = new ArrayList<>();
+    private int gravitySourcesUpdateFrame = -100;
+    private static final int GRAVITY_UPDATE_INTERVAL = 100; // Update gravity list every 100 frames
+    
+    private static final double GRAVITY_MASS_THRESHOLD = 100.0;
     
     private SimulationWorld(int cellSize, int gridWidth, int gridHeight) {
         this.matrix = new Matrix(cellSize, gridWidth, gridHeight);
@@ -33,15 +40,11 @@ public class SimulationWorld {
         this.pendingRemovals = new ArrayList<>();
         this.random = new Random();
         
-        // Default parameters
         this.timeStep = 0.1;
         this.gravityConstant = 10.0;
-        this.paused = false;
+        this.paused = true;
     }
     
-    /**
-     * Initialize the simulation world singleton.
-     */
     public static void initialize(int cellSize, int gridWidth, int gridHeight) {
         if (instance != null) {
             throw new IllegalStateException("SimulationWorld already initialized");
@@ -49,9 +52,6 @@ public class SimulationWorld {
         instance = new SimulationWorld(cellSize, gridWidth, gridHeight);
     }
     
-    /**
-     * Get the singleton instance.
-     */
     public static SimulationWorld getInstance() {
         if (instance == null) {
             throw new IllegalStateException("SimulationWorld not initialized. Call initialize() first.");
@@ -59,42 +59,26 @@ public class SimulationWorld {
         return instance;
     }
     
-    // === Entity Management ===
-    
-    /**
-     * Add an entity to the world immediately.
-     */
     public void addEntity(PhysicsObj entity) {
         matrix.insertCell(entity);
         entities.add(entity);
         entity.onAddedToWorld();
     }
     
-    /**
-     * Queue an entity for addition (safe during iteration).
-     */
     public void queueAddition(PhysicsObj entity) {
         pendingAdditions.add(entity);
     }
     
-    /**
-     * Queue an entity for removal (safe during iteration).
-     */
     public void queueRemoval(PhysicsObj entity) {
         pendingRemovals.add(entity);
     }
     
-    /**
-     * Process all pending additions and removals.
-     */
     public void processPendingChanges() {
-        // Add new entities
         for (PhysicsObj entity : pendingAdditions) {
             addEntity(entity);
         }
         pendingAdditions.clear();
         
-        // Remove entities
         for (PhysicsObj entity : pendingRemovals) {
             matrix.removeCell(entity);
             entities.remove(entity);
@@ -104,39 +88,57 @@ public class SimulationWorld {
     }
     
     /**
-     * Update all entities in the world.
+     * ULTRA-OPTIMIZED: Update gravity sources rarely, process entities efficiently.
      */
     public void update() {
         if (paused) return;
         
-        // Create snapshot to avoid concurrent modification
-        List<PhysicsObj> snapshot = new ArrayList<>(entities);
+        frameCount++;
         
-        // Apply inter-entity forces (gravity)
-        /*
-        for (PhysicsObj entity : snapshot) {
-            if (entity.isStatic()) continue;
-            
-            // Only calculate gravity from large masses
-            List<PhysicsObj> nearby = entity.getCellsInRadius(200);
-            for (PhysicsObj other : nearby) {
-                if (other != entity && other.getMass() > 10) {
-                    entity.applyGravityFrom(other);
+        // OPTIMIZATION: Update gravity sources list infrequently
+        if (frameCount - gravitySourcesUpdateFrame > GRAVITY_UPDATE_INTERVAL) {
+            updateGravitySources();
+            gravitySourcesUpdateFrame = frameCount;
+        }
+        
+        // OPTIMIZATION: Apply gravity only if there are gravity sources
+        if (!gravitySources.isEmpty()) {
+            for (PhysicsObj entity : entities) {
+                if (entity.isStatic()) continue;
+                
+                for (PhysicsObj source : gravitySources) {
+                    if (source != entity) {
+                        // OPTIMIZATION: Quick distance check before expensive calculation
+                        double dx = Math.abs(entity.getX() - source.getX());
+                        double dy = Math.abs(entity.getY() - source.getY());
+                        
+                        if (dx < 500 && dy < 500) {
+                            entity.applyGravityFrom(source);
+                        }
+                    }
                 }
             }
         }
-            */
         
         // Update all entities
-        for (PhysicsObj entity : snapshot) {
+        for (PhysicsObj entity : entities) {
             entity.update();
             matrix.updateCellGrid(entity);
         }
     }
     
     /**
-     * Clear all entities from the world.
+     * OPTIMIZATION: Cache list of massive objects that create gravity.
      */
+    private void updateGravitySources() {
+        gravitySources.clear();
+        for (PhysicsObj entity : entities) {
+            if (entity.getMass() >= GRAVITY_MASS_THRESHOLD) {
+                gravitySources.add(entity);
+            }
+        }
+    }
+    
     public void clear() {
         for (PhysicsObj entity : new ArrayList<>(entities)) {
             matrix.removeCell(entity);
@@ -144,10 +146,10 @@ public class SimulationWorld {
         entities.clear();
         pendingAdditions.clear();
         pendingRemovals.clear();
+        gravitySources.clear();
     }
     
-    // === Getters ===
-    
+    // Getters
     public Matrix getMatrix() { return matrix; }
     public List<PhysicsObj> getEntities() { return new ArrayList<>(entities); }
     public Random getRandom() { return random; }
@@ -155,9 +157,9 @@ public class SimulationWorld {
     public double getGravityConstant() { return gravityConstant; }
     public boolean isPaused() { return paused; }
     public int getEntityCount() { return entities.size(); }
+    public int getFrameCount() { return frameCount; }
     
-    // === Setters ===
-    
+    // Setters
     public void setTimeStep(double timeStep) {
         this.timeStep = Math.max(0.01, Math.min(10.0, timeStep));
     }
@@ -170,11 +172,7 @@ public class SimulationWorld {
         this.paused = paused;
     }
     
-    // === Utility Methods ===
-    
-    /**
-     * Calculate wrapped distance accounting for toroidal topology.
-     */
+    // Utility methods
     public double getWrappedDistance(double x1, double y1, double x2, double y2) {
         double dx = Math.abs(x2 - x1);
         double dy = Math.abs(y2 - y1);
@@ -188,9 +186,6 @@ public class SimulationWorld {
         return Math.sqrt(dx * dx + dy * dy);
     }
     
-    /**
-     * Calculate wrapped delta (shortest path considering wrapping).
-     */
     public Vector2D getWrappedDelta(double x1, double y1, double x2, double y2) {
         double dx = x2 - x1;
         double dy = y2 - y1;
@@ -208,9 +203,6 @@ public class SimulationWorld {
         return new Vector2D(dx, dy);
     }
     
-    /**
-     * Wrap coordinate to stay within world bounds.
-     */
     public double wrapX(double x) {
         int width = matrix.getTotalWidth();
         while (x < 0) x += width;
