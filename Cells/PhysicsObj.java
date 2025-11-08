@@ -149,7 +149,16 @@ public class PhysicsObj {
     /**
      * Update physics using symplectic Euler integration.
      */
-    public void update(double dt, Matrix matrix) {
+    public void removeSelf(ArrayList<PhysicsObj> objects) {
+        if (currentMatrixCell != null) {
+            currentMatrixCell.removeCell(this);
+            currentMatrixCell = null;
+        }
+
+        objects.remove(this);
+    }
+
+    public void update(double dt, Matrix matrix, ArrayList<PhysicsObj> cells) {
     // In your update method:
 
     /* 
@@ -272,5 +281,15 @@ public class PhysicsObj {
         }
         
         return sameCells;
+    }
+
+    public void update() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'update'");
+    }
+
+    public void update(int dt, Matrix matrix) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'update'");
     }
 }

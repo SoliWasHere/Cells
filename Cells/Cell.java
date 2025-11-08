@@ -1,6 +1,7 @@
 package Cells;
 
 import java.awt.Color;
+import java.util.ArrayList;
 
 public class Cell extends PhysicsObj {
     // === GENOME (evolvable traits) ===
@@ -33,6 +34,26 @@ public class Cell extends PhysicsObj {
         this.DAMPING_FACTOR = 0.95; // Cells have higher damping by default
     }
 
+    public void getCollision(PhysicsObj other, ArrayList<PhysicsObj> cells) {
+        if (other != this) {
+            double deltaX = other.getX() - this.getX();
+            double deltaY = other.getY() - this.getY();
+            double distance = Math.hypot(deltaX, deltaY);
+            if (distance < (this.getSize()/2 + other.getSize()/2)) {
+                other.removeSelf(cells);
+            }
+        }
+    }
+
+    public void update(double dt, Matrix matrix, ArrayList<PhysicsObj> cells) {
+        super.update(dt, matrix, cells);
+        // Update cell-specific logic here
+        PhysicsObj a = this.moveTowardsFood(matrix);
+        if (a != null) {
+            this.getCollision(a, cells);
+        }
+    }
+
     public void moveTowards(double targetX, double targetY, double speed) {
         double deltaX = targetX - this.getX();
         double deltaY = targetY - this.getY();
@@ -40,7 +61,7 @@ public class Cell extends PhysicsObj {
         this.applyForce(normalized[0] * speed, normalized[1] * speed);
     }
 
-    public void moveTowardsFood(Matrix matrix) {
+    public PhysicsObj moveTowardsFood(Matrix matrix) {
         double shortestDistance = Double.MAX_VALUE;
         PhysicsObj closestCell = null;
         for (PhysicsObj f : this.getCellsInRadius(500, matrix)) {
@@ -54,9 +75,11 @@ public class Cell extends PhysicsObj {
         }
         if (closestCell != null) {
             moveTowards(closestCell.getX(), closestCell.getY(), 10);
-            closestCell.setColor(Color.GREEN); // Highlight the food being targeted
-            closestCell.setSize(50);
+            //closestCell.setColor(Color.GREEN); // Highlight the food being targeted
+            //closestCell.setSize(50);
+            return closestCell;
         }
+        return null;
     }
     
 }

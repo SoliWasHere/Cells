@@ -23,7 +23,6 @@ public class Main {
     // Simulation parameters
     private static double dt = 0.1;
     private static double gravityConstant = 10.0;
-    private static double dampening = 1.00;
     private static boolean isPaused = false;
     private static boolean autoCamera = true;
     
@@ -48,7 +47,7 @@ public class Main {
         setupKeyboard();
         
         // Create initial cells
-        createCells(100);
+        createCells(1000);
         
         // Add a static "sun" in the center
         PhysicsObj sun = new food(matrix.getTotalWidth() / 2.0, matrix.getTotalHeight() / 2.0);
@@ -64,11 +63,12 @@ public class Main {
         cells.add(a);
         a.setSize(20);
         a.setStatic(false);
-        a.setColor(Color.CYAN);
+        a.setColor(Color.MAGENTA);
+        a.applyForce(10, 10);
         
         // Main simulation loop
         while (true) {
-            a.moveTowardsFood(matrix);
+            a.update(dt, matrix, cells);
             handleInput();
             
             if (!isPaused) {
@@ -93,7 +93,7 @@ public class Main {
             double x = rand.nextDouble() * worldWidth;
             double y = rand.nextDouble() * worldHeight;
             
-            PhysicsObj cell = new PhysicsObj(x, y);
+            PhysicsObj cell = new food(x, y);
             cell.setMass(1);
             cell.setColor(new Color(100 + rand.nextInt(155), 
                                    100 + rand.nextInt(155), 
@@ -108,10 +108,10 @@ public class Main {
             double angle = Math.atan2(dy, dx);
             double perpAngle = angle + Math.PI / 2;
             double speed = 5 + rand.nextDouble() * 5;
+            cell.DAMPING_FACTOR = 1.00;
             cell.setVelocity(Math.cos(perpAngle) * speed, Math.sin(perpAngle) * speed);
             
             cell.G = gravityConstant;
-            cell.DAMPING_FACTOR = dampening;
             
             matrix.insertCell(cell);
             cells.add(cell);
@@ -124,7 +124,6 @@ public class Main {
         // Apply physics parameters
         for (PhysicsObj cell : cells) {
             cell.G = gravityConstant;
-            cell.DAMPING_FACTOR = dampening;
         }
         
         // Create snapshot to avoid ConcurrentModificationException
@@ -145,7 +144,7 @@ public class Main {
         
         // Update all cells
         for (PhysicsObj cell : cellsSnapshot) {
-            cell.update(dt, matrix);
+            cell.update(dt, matrix, cells);
             matrix.updateCellGrid(cell);
         }
     }
@@ -228,11 +227,12 @@ public class Main {
                 break;
                 
             case 2: // Dampening
+            /* 
                 dampening *= factor;
                 dampening = Math.max(0.01, Math.min(1.0, dampening));
                 System.out.println("Dampening: " + dampening);
                 break;
-                
+                */
             case 3: // dt
                 dt *= factor;
                 dt = Math.max(0.01, Math.min(10.0, dt));
@@ -257,7 +257,7 @@ public class Main {
                                             255));
                         cell.setSize(3);
                         cell.G = gravityConstant;
-                        cell.DAMPING_FACTOR = dampening;
+                        cell.DAMPING_FACTOR = 0.9;
                         matrix.insertCell(cell);
                         pendingAdditions.add(cell); 
                     }
