@@ -10,6 +10,8 @@ import java.util.Random;
  */
 public class SimulationWorld {
     private static SimulationWorld instance;
+
+    private Displayer displayer;
     
     private final Matrix matrix;
     private final List<PhysicsObj> entities;
@@ -217,5 +219,13 @@ public class SimulationWorld {
         while (y < 0) y += height;
         while (y >= height) y -= height;
         return y;
+    }
+
+    public void setDisplayer(Displayer displayer) {
+        this.displayer = displayer;
+    }
+
+    public Displayer getDisplayer() {
+        return displayer;
     }
 }

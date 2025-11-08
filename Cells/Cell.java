@@ -9,9 +9,10 @@ import java.util.List;
  */
 public class Cell extends PhysicsObj {
     // Behavioral parameters (future: make these evolvable)
-    private static final double FOOD_DETECTION_RADIUS = 500.0;
-    private static final double MOVEMENT_FORCE = 10.0;
-    private static final double EATING_DISTANCE = 1.0; // Distance threshold for eating
+    private double FOOD_DETECTION_RADIUS = 500.0;
+    private double MOVEMENT_FORCE = 10.0;
+    private double EATING_DISTANCE = 1.0; // Distance threshold for eating
+    private double evolveRate = Math.random() * 10;
     
     // Cell state
     private double energy;
@@ -33,6 +34,7 @@ public class Cell extends PhysicsObj {
     @Override
     protected void onUpdate() {
         age++;
+        energy -= (Math.pow(EATING_DISTANCE,1/2))/2; // Baseline energy consumption
         
         // Search for food
         findAndChaseFood();
@@ -43,6 +45,34 @@ public class Cell extends PhysicsObj {
         }
         
         // Future: reproduction, death, etc.
+        if (energy <= 0) {
+            destroy(); // Cell dies
+        }
+
+        if (energy > 200) {
+            energy -= 100;
+            Cell offspring = new Cell(getX() + 10, getY() + 10);
+
+            offspring.setMovementForce(
+                this.MOVEMENT_FORCE * ( MathFunction.evolve(evolveRate) + 1)
+            );
+
+            offspring.setSize((int) (EATING_DISTANCE * 20) );
+
+            offspring.setEatingDistance(
+                EATING_DISTANCE * (MathFunction.evolve(evolveRate)+1)
+            );
+
+            offspring.setColor(
+                new Color(
+                    (int) Math.min(255, getColor().getRed() * (MathFunction.evolve(evolveRate) + 1)),
+                    (int) Math.min(255, getColor().getGreen() * (MathFunction.evolve(evolveRate) + 1)),
+                    (int) Math.min(255, getColor().getBlue() * (MathFunction.evolve(evolveRate) + 1))
+                )
+            );
+
+            SimulationWorld.getInstance().addEntity(offspring);
+        }
     }
     
     /**
@@ -84,6 +114,7 @@ public class Cell extends PhysicsObj {
     private void moveTowards(PhysicsObj target) {
         Vector2D direction = getDirectionTo(target);
         applyForce(direction.scale(MOVEMENT_FORCE));
+        energy -= MOVEMENT_FORCE * 0.1; // Energy cost for moving
     }
     
     /**
@@ -96,15 +127,37 @@ public class Cell extends PhysicsObj {
             food.destroy();
             targetFood = null;
             
-            // Visual feedback
-            setColor(Color.GREEN);
-            
             // Reset color after a moment (in real implementation, use a timer)
             // For now, we'll just keep it simple
         } else if (getDistanceTo(food) > FOOD_DETECTION_RADIUS) {
             // Lost track of food
             targetFood = null;
         }
+    }
+
+    // === Setters ===
+
+    public void setEnergy(double energy) {
+        this.energy = Math.max(0, energy);
+    }
+
+    public void setAge(int age) {
+        this.age = Math.max(0, age);
+    }
+
+    public void setFoodDetectionRadius(double radius) {
+        this.FOOD_DETECTION_RADIUS = radius;
+    }
+
+    public void setMovementForce(double force) {
+        this.MOVEMENT_FORCE = force;
+    }
+
+    public void setEatingDistance(double distance) {
+        if (distance > 200) {
+            this.destroy();
+        }
+        this.EATING_DISTANCE = distance;
     }
     
     // === Getters ===
@@ -115,6 +168,10 @@ public class Cell extends PhysicsObj {
     
     public int getAge() {
         return age;
+    }
+
+    public double getMovementForce() {
+        return MOVEMENT_FORCE;
     }
     
     @Override

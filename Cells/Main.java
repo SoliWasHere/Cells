@@ -11,38 +11,55 @@ import java.awt.event.KeyListener;
  * - SPACE: Pause/unpause simulation
  * - WASD: Move camera (manual mode)
  * - E/Q: Zoom in/out (manual mode)
- * - 1-5: Select parameter (Gravity, Dampening, TimeStep, Camera, Entities)
+ * - Mouse Wheel: Zoom (manual mode)
+ * - Mouse Hover: Show entity info
+ * - Mouse Click: Select entity (prints to console)
+ * - 1-5: Select parameter (Gravity, TimeStep, Camera, Entities, Clear)
  * - [ / ]: Decrease/increase selected parameter
  */
 public class Main {
     private static Displayer displayer;
     private static InputManager inputManager;
+    private static MouseManager mouseManager;
     
     // Camera control
     private static boolean autoCamera = true;
-    private static final double CAMERA_SPEED = 10.0;
-    private static final double ZOOM_SPEED = 0.1;
     
     public static void main(String[] args) {
         // Initialize simulation world
         SimulationWorld.initialize(50, 20, 20);
         SimulationWorld world = SimulationWorld.getInstance();
         
-        // Setup display
-        displayer = new Displayer(world.getMatrix());
+        // Setup managers
         inputManager = new InputManager();
+        mouseManager = new MouseManager();
+        
+        // Setup display
+        displayer = new Displayer(world.getMatrix(), mouseManager);
+        world.setDisplayer(displayer);
+        
+        // Setup input listeners
         setupKeyboard();
+        setupMouse();
         
         // Create initial scene
         createInitialScene();
+        int cycles = 0;
         
         // Main simulation loop
         while (true) {
+            cycles++;
+
             // Handle user input
             inputManager.update(displayer);
+            mouseManager.update(displayer);
             
             // Update simulation
             world.update();
+
+            if (cycles% 100 == 0) {
+                createOrbitingFood(100);
+            }
             
             // Process entity additions/removals
             world.processPendingChanges();
@@ -85,6 +102,7 @@ public class Main {
         createOrbitingFood(1000);
         
         System.out.println("Scene created with " + world.getEntityCount() + " entities");
+        System.out.println("Hover over entities to see their info!");
     }
     
     /**
@@ -125,7 +143,7 @@ public class Main {
                 Math.sin(perpAngle) * speed
             );
             
-            food.dampingFactor = 1.0; // No damping for space particles
+            food.dampingFactor = 1.0;
             
             world.addEntity(food);
         }
@@ -163,6 +181,13 @@ public class Main {
                 // Not used
             }
         });
+    }
+    
+    /**
+     * Setup mouse input handling.
+     */
+    private static void setupMouse() {
+        displayer.getPanel().addMouseListener(mouseManager);
     }
     
     /**

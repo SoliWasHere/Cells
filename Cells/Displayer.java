@@ -13,6 +13,8 @@ public class Displayer {
     private final BufferedImage buffer;
     private final Graphics2D g2;
     private final Graphics panelGraphics;
+
+    private MouseManager mouseManager;
     
     // Camera system
     public double cameraX;
@@ -33,7 +35,7 @@ public class Displayer {
     /**
      * Create a new displayer for the simulation.
      */
-    public Displayer(Matrix matrix) {
+    public Displayer(Matrix matrix, MouseManager mouseManager) {
         int width = matrix.getTotalWidth();
         int height = matrix.getTotalHeight();
         
@@ -41,13 +43,13 @@ public class Displayer {
         this.buffer = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         this.g2 = buffer.createGraphics();
         this.panelGraphics = panel.getGraphics();
+        this.mouseManager = mouseManager;  // ADD THIS
         
         // Initialize camera at center
         this.cameraX = width / 2.0;
         this.cameraY = height / 2.0;
         this.zoom = 1.0;
         
-        // Enable high-quality rendering
         setupRenderingHints();
     }
     
@@ -73,6 +75,8 @@ public class Displayer {
         drawGrid(world.getMatrix());
         drawEntities(world.getEntities());
         drawUI(world);
+
+        drawTooltips();
         
         // Copy buffer to screen
         panelGraphics.drawImage(buffer, 0, 0, null);
@@ -96,6 +100,39 @@ public class Displayer {
         
         // Smoothly interpolate zoom
         zoom += (idealZoom - zoom) * ZOOM_SMOOTH;
+    }
+
+    /*
+     * Draw tooltip for hovered entity.
+     */
+    private void drawTooltips() {
+        if (mouseManager.isHoveringEntity()) {
+            PhysicsObj hoveredEntity = mouseManager.getHoveredEntity();
+            
+            // Highlight hovered entity
+            g2.setColor(new Color(255, 255, 255, 100));
+            g2.setStroke(new BasicStroke(2));
+            double screenX = worldToScreenX(hoveredEntity.getX());
+            double screenY = worldToScreenY(hoveredEntity.getY());
+            int screenSize = Math.max(1, (int) (hoveredEntity.getSize() * zoom));
+            
+            g2.drawOval(
+                (int) (screenX - screenSize / 2.0 - 3),
+                (int) (screenY - screenSize / 2.0 - 3),
+                screenSize + 6,
+                screenSize + 6
+            );
+            
+            // Draw tooltip
+            EntityTooltip.draw(
+                g2, 
+                hoveredEntity, 
+                mouseManager.getMouseX(), 
+                mouseManager.getMouseY(),
+                buffer.getWidth(),
+                buffer.getHeight()
+            );
+        }
     }
     
     /**
