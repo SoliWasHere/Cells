@@ -1,4 +1,4 @@
-//INPUTMANAGER.JAVA
+//INPUTMANAGER.JAVA (UPDATED)
 
 package Cells;
 
@@ -33,6 +33,11 @@ public class InputManager {
         // Pause toggle
         if (keyCode == KeyEvent.VK_SPACE) {
             togglePause();
+        }
+        
+        // Toggle gradient visualization
+        if (keyCode == KeyEvent.VK_G) {
+            toggleGradientVisualization();
         }
     }
     
@@ -84,6 +89,16 @@ public class InputManager {
         SimulationWorld world = SimulationWorld.getInstance();
         world.setPaused(!world.isPaused());
         System.out.println(world.isPaused() ? "PAUSED" : "RUNNING");
+    }
+    
+    /**
+     * Toggle gradient field visualization.
+     */
+    private void toggleGradientVisualization() {
+        SimulationWorld world = SimulationWorld.getInstance();
+        Displayer displayer = world.getDisplayer();
+        displayer.toggleGradientField();
+        System.out.println("Gradient visualization: " + (displayer.isShowingGradientField() ? "ON" : "OFF"));
     }
     
     /**
@@ -147,8 +162,8 @@ public class InputManager {
         if (increase) {
             // Add 10 food particles
             for (int i = 0; i < 10; i++) {
-                double x = world.getRandom().nextDouble() * world.getMatrix().getTotalWidth();
-                double y = world.getRandom().nextDouble() * world.getMatrix().getTotalHeight();
+                double x = world.getRandom().nextDouble() * world.getTotalWidth();
+                double y = world.getRandom().nextDouble() * world.getTotalHeight();
                 
                 Food food = new Food(x, y);
                 food.setMass(1);

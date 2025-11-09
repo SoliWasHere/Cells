@@ -1,4 +1,4 @@
-//DISPLAYER.JAVA
+//DISPLAYER.JAVA (WITH GRADIENT VISUALIZATION)
 
 package Cells;
 
@@ -7,8 +7,7 @@ import java.awt.image.BufferedImage;
 import java.util.List;
 
 /**
- * Handles all rendering with camera system and double buffering.
- * Provides smooth camera tracking and zoom capabilities.
+ * Handles rendering with gradient field visualization.
  */
 public class Displayer {
     private final DrawingPanel panel;
@@ -29,20 +28,24 @@ public class Displayer {
     private static final double ZOOM_MARGIN = 100.0;
     
     // Visual constants
-    private static final Color GRID_COLOR = new Color(40, 40, 40);
     private static final Color BACKGROUND_COLOR = new Color(10, 10, 15);
     private static final Color UI_TEXT_COLOR = new Color(200, 200, 200);
     private static final Font UI_FONT = new Font("Monospaced", Font.PLAIN, 12);
     
+    // Gradient visualization
+    private boolean showGradientField = true;
+    private int gradientResolution = 20; // Sample every N pixels
+    
     /**
      * Create a new displayer for the simulation.
      */
-    public Displayer(Matrix matrix, MouseManager mouseManager) {
-        int width = Math.min(1000, matrix.getTotalWidth());
-        int height = Math.min(1000, matrix.getTotalHeight());
-        
-        this.panel = new DrawingPanel(width, height);
-        this.buffer = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+    public Displayer(int width, int height, MouseManager mouseManager) {
+        this.panel = new DrawingPanel(Math.min(1000, width), Math.min(1000, height));
+        this.buffer = new BufferedImage(
+            Math.min(1000, width), 
+            Math.min(1000, height), 
+            BufferedImage.TYPE_INT_ARGB
+        );
         this.g2 = buffer.createGraphics();
         this.panelGraphics = panel.getGraphics();
         this.mouseManager = mouseManager;
@@ -74,14 +77,85 @@ public class Displayer {
         SimulationWorld world = SimulationWorld.getInstance();
         
         clearBuffer();
-        drawGrid(world.getMatrix());
+        
+        if (showGradientField) {
+            drawGradientField(world.getFoodGradientField());
+        }
+        
         drawEntities(world.getEntities());
         drawUI(world);
-
         drawTooltips();
         
         // Copy buffer to screen
         panelGraphics.drawImage(buffer, 0, 0, null);
+    }
+    
+    /**
+     * Draw the food gradient field as a heatmap.
+     */
+    private void drawGradientField(GradientField field) {
+        int screenWidth = buffer.getWidth();
+        int screenHeight = buffer.getHeight();
+        
+        // Sample gradient at regular intervals
+        for (int screenX = 0; screenX < screenWidth; screenX += gradientResolution) {
+            for (int screenY = 0; screenY < screenHeight; screenY += gradientResolution) {
+                // Convert screen to world coordinates
+                double worldX = screenToWorldX(screenX);
+                double worldY = screenToWorldY(screenY);
+                
+                // Sample gradient
+                GradientSample sample = field.sample(worldX, worldY);
+                
+                if (sample.strength > 0.1) {
+                    // Draw gradient strength as color intensity
+                    float intensity = (float)Math.min(1.0, sample.strength / 100.0);
+                    
+                    // Blue gradient for food
+                    Color gradientColor = new Color(0.0f, 0.3f * intensity, 0.8f * intensity, 0.3f * intensity);
+                    g2.setColor(gradientColor);
+                    
+                    int size = gradientResolution;
+                    g2.fillRect(screenX, screenY, size, size);
+                    
+                    // Draw direction arrow if gradient is strong
+                    if (sample.strength > 10.0 && zoom > 0.5) {
+                        drawGradientArrow(screenX + size/2, screenY + size/2, 
+                                        sample.directionX, sample.directionY, 
+                                        intensity);
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Draw a small arrow showing gradient direction.
+     */
+    private void drawGradientArrow(int x, int y, double dirX, double dirY, float intensity) {
+        g2.setColor(new Color(0.5f, 0.8f, 1.0f, 0.5f * intensity));
+        
+        int arrowLength = (int)(gradientResolution * 0.4);
+        int endX = x + (int)(dirX * arrowLength);
+        int endY = y + (int)(dirY * arrowLength);
+        
+        g2.setStroke(new BasicStroke(1.5f));
+        g2.drawLine(x, y, endX, endY);
+        
+        // Draw arrowhead
+        double angle = Math.atan2(dirY, dirX);
+        int headSize = 3;
+        int[] xPoints = {
+            endX,
+            endX - (int)(headSize * Math.cos(angle - Math.PI/6)),
+            endX - (int)(headSize * Math.cos(angle + Math.PI/6))
+        };
+        int[] yPoints = {
+            endY,
+            endY - (int)(headSize * Math.sin(angle - Math.PI/6)),
+            endY - (int)(headSize * Math.sin(angle + Math.PI/6))
+        };
+        g2.fillPolygon(xPoints, yPoints, 3);
     }
     
     /**
@@ -104,7 +178,7 @@ public class Displayer {
         zoom += (idealZoom - zoom) * ZOOM_SMOOTH;
     }
 
-    /*
+    /**
      * Draw tooltip for hovered entity.
      */
     private void drawTooltips() {
@@ -146,35 +220,6 @@ public class Displayer {
     }
     
     /**
-     * Draw the spatial grid.
-     */
-    private void drawGrid(Matrix matrix) {
-        g2.setColor(GRID_COLOR);
-        int cellSize = matrix.getCellSize();
-        
-        // Only draw grid if zoomed in enough
-        if (zoom < 0.5) return;
-        
-        // Calculate visible grid range
-        int startX = Math.max(0, (int) screenToWorldX(0) / cellSize);
-        int endX = Math.min(matrix.getGridWidth(), (int) screenToWorldX(buffer.getWidth()) / cellSize + 1);
-        int startY = Math.max(0, (int) screenToWorldY(0) / cellSize);
-        int endY = Math.min(matrix.getGridHeight(), (int) screenToWorldY(buffer.getHeight()) / cellSize + 1);
-        
-        // Draw vertical lines
-        for (int x = startX; x <= endX; x++) {
-            int worldX = x * cellSize;
-            drawLine(worldX, 0, worldX, matrix.getTotalHeight());
-        }
-        
-        // Draw horizontal lines
-        for (int y = startY; y <= endY; y++) {
-            int worldY = y * cellSize;
-            drawLine(0, worldY, matrix.getTotalWidth(), worldY);
-        }
-    }
-    
-    /**
      * Draw all entities in the world.
      */
     private void drawEntities(List<PhysicsObj> entities) {
@@ -204,44 +249,7 @@ public class Displayer {
      */
     private void drawEntity(PhysicsObj entity) {
         g2.setColor(entity.getColor());
-        
         drawCircle(entity.getX(), entity.getY(), entity.getSize());
-        
-        // Draw velocity vector for debugging (if zoomed in)
-        // if (zoom > 1.5 && !entity.isStatic()) {
-        //    drawVelocityVector(entity);
-        //}
-    }
-    
-    /**
-     * Draw a glowing halo around large masses.
-     */
-    private void drawGlow(PhysicsObj entity) {
-        Color glowColor = new Color(
-            entity.getColor().getRed(),
-            entity.getColor().getGreen(),
-            entity.getColor().getBlue(),
-            50
-        );
-        
-        g2.setColor(glowColor);
-        int glowSize = entity.getSize() * 2;
-        drawCircle(entity.getX(), entity.getY(), glowSize);
-    }
-    
-    /**
-     * Draw velocity vector for debugging.
-     */
-    private void drawVelocityVector(PhysicsObj entity) {
-        double speed = entity.getSpeed();
-        if (speed < 0.1) return;
-        
-        g2.setColor(new Color(255, 255, 0, 150));
-        
-        double endX = entity.getX() + entity.getVelocityX() * 2;
-        double endY = entity.getY() + entity.getVelocityY() * 2;
-        
-        drawLine(entity.getX(), entity.getY(), endX, endY);
     }
     
     /**
@@ -271,6 +279,9 @@ public class Displayer {
         drawText(String.format("Zoom: %.2fx", zoom), x, y);
         y += lineHeight;
         
+        drawText(String.format("Gradient: %s", showGradientField ? "ON" : "OFF"), x, y);
+        y += lineHeight;
+        
         // Controls help (bottom of screen)
         drawControlsHelp();
     }
@@ -283,7 +294,7 @@ public class Displayer {
         g2.setFont(new Font("Monospaced", Font.PLAIN, 10));
         
         String[] controls = {
-            "SPACE:Pause  WASD:Camera  E/Q:Zoom  1-5:Parameter  [/]:Adjust"
+            "SPACE:Pause  WASD:Camera  E/Q:Zoom  G:Toggle Gradient  1-5:Parameter  [/]:Adjust"
         };
         
         int y = buffer.getHeight() - 10;
@@ -316,18 +327,6 @@ public class Displayer {
             scaledSize,
             scaledSize
         );
-    }
-    
-    /**
-     * Draw a line in world coordinates.
-     */
-    private void drawLine(double worldX1, double worldY1, double worldX2, double worldY2) {
-        int screenX1 = (int) worldToScreenX(worldX1);
-        int screenY1 = (int) worldToScreenY(worldY1);
-        int screenX2 = (int) worldToScreenX(worldX2);
-        int screenY2 = (int) worldToScreenY(worldY2);
-        
-        g2.drawLine(screenX1, screenY1, screenX2, screenY2);
     }
     
     // === Coordinate Conversion ===
@@ -438,6 +437,14 @@ public class Displayer {
     
     public Graphics2D getGraphics() {
         return g2;
+    }
+    
+    public void toggleGradientField() {
+        showGradientField = !showGradientField;
+    }
+    
+    public boolean isShowingGradientField() {
+        return showGradientField;
     }
     
     /**

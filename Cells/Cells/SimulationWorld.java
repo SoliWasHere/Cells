@@ -1,20 +1,28 @@
-//SIMULATIONWORLD.JAVA (ULTRA-OPTIMIZED)
+//SIMULATIONWORLD.JAVA (GRADIENT-BASED)
 
 package Cells;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 /**
- * ULTRA-OPTIMIZED: Minimal gravity calculations.
+ * Simulation world using gradient fields for entity behavior.
  */
 public class SimulationWorld {
     private static SimulationWorld instance;
 
     private Displayer displayer;
     
-    private final Matrix matrix;
+    private final GradientField foodGradientField;
+    private final GradientField cellGradientField;
+    
+    // Simple spatial hash for entity storage (for eating, collision, etc.)
+    private final Map<Integer, List<PhysicsObj>> entitySpatialHash;
+    private final int cellSize;
+    private final int gridWidth;
+    private final int gridHeight;
+    private final int totalWidth;
+    private final int totalHeight;
+    
     private final List<PhysicsObj> entities;
     private final List<PhysicsObj> pendingAdditions;
     private final List<PhysicsObj> pendingRemovals;
@@ -26,15 +34,24 @@ public class SimulationWorld {
     
     private int frameCount = 0;
     
-    // OPTIMIZATION: Cache static gravity sources
+    // Gravity sources cache
     private List<PhysicsObj> gravitySources = new ArrayList<>();
     private int gravitySourcesUpdateFrame = -100;
-    private static final int GRAVITY_UPDATE_INTERVAL = 100; // Update gravity list every 100 frames
-    
+    private static final int GRAVITY_UPDATE_INTERVAL = 100;
     private static final double GRAVITY_MASS_THRESHOLD = 100.0;
     
     private SimulationWorld(int cellSize, int gridWidth, int gridHeight) {
-        this.matrix = new Matrix(cellSize, gridWidth, gridHeight);
+        this.cellSize = cellSize;
+        this.gridWidth = gridWidth;
+        this.gridHeight = gridHeight;
+        this.totalWidth = cellSize * gridWidth;
+        this.totalHeight = cellSize * gridHeight;
+        
+        // Create gradient fields
+        this.foodGradientField = new GradientField(cellSize, gridWidth, gridHeight, 300.0, 2.0);
+        this.cellGradientField = new GradientField(cellSize, gridWidth, gridHeight, 150.0, 2.5);
+        
+        this.entitySpatialHash = new HashMap<>();
         this.entities = new ArrayList<>();
         this.pendingAdditions = new ArrayList<>();
         this.pendingRemovals = new ArrayList<>();
@@ -54,14 +71,14 @@ public class SimulationWorld {
     
     public static SimulationWorld getInstance() {
         if (instance == null) {
-            throw new IllegalStateException("SimulationWorld not initialized. Call initialize() first.");
+            throw new IllegalStateException("SimulationWorld not initialized");
         }
         return instance;
     }
     
     public void addEntity(PhysicsObj entity) {
-        matrix.insertCell(entity);
         entities.add(entity);
+        addToSpatialHash(entity);
         entity.onAddedToWorld();
     }
     
@@ -80,7 +97,7 @@ public class SimulationWorld {
         pendingAdditions.clear();
         
         for (PhysicsObj entity : pendingRemovals) {
-            matrix.removeCell(entity);
+            removeFromSpatialHash(entity);
             entities.remove(entity);
             entity.onRemovedFromWorld();
         }
@@ -88,27 +105,83 @@ public class SimulationWorld {
     }
     
     /**
-     * ULTRA-OPTIMIZED: Update gravity sources rarely, process entities efficiently.
+     * Add entity to spatial hash.
      */
+    private void addToSpatialHash(PhysicsObj entity) {
+        int hash = getSpatialHash(entity.getX(), entity.getY());
+        entitySpatialHash.computeIfAbsent(hash, k -> new ArrayList<>()).add(entity);
+    }
+    
+    /**
+     * Remove entity from spatial hash.
+     */
+    private void removeFromSpatialHash(PhysicsObj entity) {
+        int hash = getSpatialHash(entity.getX(), entity.getY());
+        List<PhysicsObj> cell = entitySpatialHash.get(hash);
+        if (cell != null) {
+            cell.remove(entity);
+            if (cell.isEmpty()) {
+                entitySpatialHash.remove(hash);
+            }
+        }
+    }
+    
+    /**
+     * Update entity position in spatial hash.
+     */
+    private void updateSpatialHash(PhysicsObj entity, double oldX, double oldY) {
+        int oldHash = getSpatialHash(oldX, oldY);
+        int newHash = getSpatialHash(entity.getX(), entity.getY());
+        
+        if (oldHash != newHash) {
+            List<PhysicsObj> oldCell = entitySpatialHash.get(oldHash);
+            if (oldCell != null) {
+                oldCell.remove(entity);
+                if (oldCell.isEmpty()) {
+                    entitySpatialHash.remove(oldHash);
+                }
+            }
+            
+            entitySpatialHash.computeIfAbsent(newHash, k -> new ArrayList<>()).add(entity);
+        }
+    }
+    
+    /**
+     * Get spatial hash key.
+     */
+    private int getSpatialHash(double x, double y) {
+        int gridX = ((int)(x / cellSize) % gridWidth + gridWidth) % gridWidth;
+        int gridY = ((int)(y / cellSize) % gridHeight + gridHeight) % gridHeight;
+        return gridX + gridY * gridWidth;
+    }
+    
+    /**
+     * Get entities in a specific spatial cell.
+     */
+    public List<PhysicsObj> getEntitiesInSpatialCell(int gridX, int gridY) {
+        int hash = gridX + gridY * gridWidth;
+        List<PhysicsObj> cell = entitySpatialHash.get(hash);
+        return cell != null ? new ArrayList<>(cell) : new ArrayList<>();
+    }
+    
     public void update() {
         if (paused) return;
         
         frameCount++;
         
-        // OPTIMIZATION: Update gravity sources list infrequently
+        // Update gravity sources periodically
         if (frameCount - gravitySourcesUpdateFrame > GRAVITY_UPDATE_INTERVAL) {
             updateGravitySources();
             gravitySourcesUpdateFrame = frameCount;
         }
         
-        // OPTIMIZATION: Apply gravity only if there are gravity sources
+        // Apply gravity
         if (!gravitySources.isEmpty()) {
             for (PhysicsObj entity : entities) {
                 if (entity.isStatic()) continue;
                 
                 for (PhysicsObj source : gravitySources) {
                     if (source != entity) {
-                        // OPTIMIZATION: Quick distance check before expensive calculation
                         double dx = Math.abs(entity.getX() - source.getX());
                         double dy = Math.abs(entity.getY() - source.getY());
                         
@@ -122,14 +195,15 @@ public class SimulationWorld {
         
         // Update all entities
         for (PhysicsObj entity : entities) {
+            double oldX = entity.getX();
+            double oldY = entity.getY();
+            
             entity.update();
-            matrix.updateCellGrid(entity);
+            
+            updateSpatialHash(entity, oldX, oldY);
         }
     }
     
-    /**
-     * OPTIMIZATION: Cache list of massive objects that create gravity.
-     */
     private void updateGravitySources() {
         gravitySources.clear();
         for (PhysicsObj entity : entities) {
@@ -140,17 +214,18 @@ public class SimulationWorld {
     }
     
     public void clear() {
-        for (PhysicsObj entity : new ArrayList<>(entities)) {
-            matrix.removeCell(entity);
-        }
         entities.clear();
         pendingAdditions.clear();
         pendingRemovals.clear();
         gravitySources.clear();
+        entitySpatialHash.clear();
+        foodGradientField.clear();
+        cellGradientField.clear();
     }
     
     // Getters
-    public Matrix getMatrix() { return matrix; }
+    public GradientField getFoodGradientField() { return foodGradientField; }
+    public GradientField getCellGradientField() { return cellGradientField; }
     public List<PhysicsObj> getEntities() { return new ArrayList<>(entities); }
     public Random getRandom() { return random; }
     public double getTimeStep() { return timeStep; }
@@ -158,6 +233,8 @@ public class SimulationWorld {
     public boolean isPaused() { return paused; }
     public int getEntityCount() { return entities.size(); }
     public int getFrameCount() { return frameCount; }
+    public int getTotalWidth() { return totalWidth; }
+    public int getTotalHeight() { return totalHeight; }
     
     // Setters
     public void setTimeStep(double timeStep) {
@@ -172,16 +249,21 @@ public class SimulationWorld {
         this.paused = paused;
     }
     
+    public void setDisplayer(Displayer displayer) {
+        this.displayer = displayer;
+    }
+
+    public Displayer getDisplayer() {
+        return displayer;
+    }
+    
     // Utility methods
     public double getWrappedDistance(double x1, double y1, double x2, double y2) {
         double dx = Math.abs(x2 - x1);
         double dy = Math.abs(y2 - y1);
         
-        int width = matrix.getTotalWidth();
-        int height = matrix.getTotalHeight();
-        
-        if (dx > width / 2.0) dx = width - dx;
-        if (dy > height / 2.0) dy = height - dy;
+        if (dx > totalWidth / 2.0) dx = totalWidth - dx;
+        if (dy > totalHeight / 2.0) dy = totalHeight - dy;
         
         return Math.sqrt(dx * dx + dy * dy);
     }
@@ -190,38 +272,25 @@ public class SimulationWorld {
         double dx = x2 - x1;
         double dy = y2 - y1;
         
-        int width = matrix.getTotalWidth();
-        int height = matrix.getTotalHeight();
-        
-        if (Math.abs(dx) > width / 2.0) {
-            dx = dx > 0 ? dx - width : dx + width;
+        if (Math.abs(dx) > totalWidth / 2.0) {
+            dx = dx > 0 ? dx - totalWidth : dx + totalWidth;
         }
-        if (Math.abs(dy) > height / 2.0) {
-            dy = dy > 0 ? dy - height : dy + height;
+        if (Math.abs(dy) > totalHeight / 2.0) {
+            dy = dy > 0 ? dy - totalHeight : dy + totalHeight;
         }
         
         return new Vector2D(dx, dy);
     }
     
     public double wrapX(double x) {
-        int width = matrix.getTotalWidth();
-        while (x < 0) x += width;
-        while (x >= width) x -= width;
+        while (x < 0) x += totalWidth;
+        while (x >= totalWidth) x -= totalWidth;
         return x;
     }
     
     public double wrapY(double y) {
-        int height = matrix.getTotalHeight();
-        while (y < 0) y += height;
-        while (y >= height) y -= height;
+        while (y < 0) y += totalHeight;
+        while (y >= totalHeight) y -= totalHeight;
         return y;
-    }
-
-    public void setDisplayer(Displayer displayer) {
-        this.displayer = displayer;
-    }
-
-    public Displayer getDisplayer() {
-        return displayer;
     }
 }

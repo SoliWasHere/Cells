@@ -1,10 +1,8 @@
-//PHYSICSOBJ.JAVA (OPTIMIZED - Add this method)
+//PHYSICSOBJ.JAVA (SIMPLIFIED FOR GRADIENTS)
 
 package Cells;
 
 import java.awt.Color;
-import java.util.ArrayList;
-import java.util.List;
 
 public abstract class PhysicsObj {
     protected double maxVelocity = 10000.0;
@@ -21,8 +19,6 @@ public abstract class PhysicsObj {
     private Color color;
     private int size;
     private boolean isStatic;
-    
-    protected MatrixCell currentMatrixCell;  // CHANGED: protected for direct access
     
     public PhysicsObj(double x, double y) {
         this.x = x;
@@ -68,8 +64,8 @@ public abstract class PhysicsObj {
     }
     
     protected void onUpdate() {}
-    
-    public void applyForce(double fx, double fy) {
+
+public void applyForce(double fx, double fy) {
         accelerationX += fx / mass;
         accelerationY += fy / mass;
     }
@@ -104,73 +100,6 @@ public abstract class PhysicsObj {
         }
     }
     
-    public List<PhysicsObj> getCellsInRadius(double radius) {
-        List<PhysicsObj> nearby = new ArrayList<>();
-        
-        if (currentMatrixCell == null) {
-            return nearby;
-        }
-        
-        SimulationWorld world = SimulationWorld.getInstance();
-        Matrix matrix = world.getMatrix();
-        
-        int cellSize = matrix.getCellSize();
-        int cellRadius = (int) Math.ceil(radius / cellSize);
-        
-        int currentGridX = currentMatrixCell.getGridX();
-        int currentGridY = currentMatrixCell.getGridY();
-        
-        for (int dx = -cellRadius; dx <= cellRadius; dx++) {
-            for (int dy = -cellRadius; dy <= cellRadius; dy++) {
-                MatrixCell cell = matrix.getMatrixCell(currentGridX + dx, currentGridY + dy);
-                
-                if (cell != null) {
-                    for (PhysicsObj other : cell.getCells()) {
-                        if (other != this) {
-                            double distance = getDistanceTo(other);
-                            if (distance <= radius) {
-                                nearby.add(other);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        return nearby;
-    }
-    
-    public List<PhysicsObj> getCellsInSameGrid() {
-        List<PhysicsObj> sameCells = new ArrayList<>();
-        
-        if (currentMatrixCell != null) {
-            for (PhysicsObj other : currentMatrixCell.getCells()) {
-                if (other != this) {
-                    sameCells.add(other);
-                }
-            }
-        }
-        
-        return sameCells;
-    }
-    
-    public double getDistanceTo(PhysicsObj other) {
-        SimulationWorld world = SimulationWorld.getInstance();
-        return world.getWrappedDistance(x, y, other.x, other.y);
-    }
-    
-    public Vector2D getDirectionTo(PhysicsObj other) {
-        SimulationWorld world = SimulationWorld.getInstance();
-        Vector2D delta = world.getWrappedDelta(x, y, other.x, other.y);
-        return delta.normalize();
-    }
-    
-    public boolean isCollidingWith(PhysicsObj other) {
-        double distance = getDistanceTo(other);
-        double collisionDistance = (size + other.size) / 2.0;
-        return distance < collisionDistance;
-    }
-    
     public void destroy() {
         SimulationWorld.getInstance().queueRemoval(this);
     }
@@ -186,7 +115,6 @@ public abstract class PhysicsObj {
     public Color getColor() { return color; }
     public int getSize() { return size; }
     public boolean isStatic() { return isStatic; }
-    public MatrixCell getCurrentMatrixCell() { return currentMatrixCell; }
     
     public Vector2D getVelocity() {
         return new Vector2D(velocityX, velocityY);
@@ -232,10 +160,6 @@ public abstract class PhysicsObj {
     
     public void setStatic(boolean isStatic) {
         this.isStatic = isStatic;
-    }
-    
-    public void setCurrentMatrixCell(MatrixCell matrixCell) {
-        this.currentMatrixCell = matrixCell;
     }
     
     @Override

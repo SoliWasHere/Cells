@@ -1,4 +1,4 @@
-//MAIN.JAVA (OPTIMIZED)
+//MAIN.JAVA (GRADIENT-BASED)
 
 package Cells;
 
@@ -7,7 +7,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 
 /**
- * OPTIMIZED: Reduced food spawning rate for better performance.
+ * Main entry point for gradient-based simulation.
  */
 public class Main {
     private static Displayer displayer;
@@ -23,7 +23,7 @@ public class Main {
         inputManager = new InputManager();
         mouseManager = new MouseManager();
         
-        displayer = new Displayer(world.getMatrix(), mouseManager);
+        displayer = new Displayer( (int) world.getTotalWidth(), (int) world.getTotalHeight(), mouseManager);
         world.setDisplayer(displayer);
         
         setupKeyboard();
@@ -40,9 +40,8 @@ public class Main {
             
             world.update();
 
-            // OPTIMIZATION: Spawn food much less frequently (every 500 cycles instead of 100)
-            // and spawn fewer at a time (10 instead of 100)
-            if (cycles % 1 == 0) {
+            // Spawn food periodically
+            if (cycles % 50 == 0) {
                 createOrbitingFood(10);
             }
             
@@ -57,11 +56,10 @@ public class Main {
     private static void createInitialScene() {
         SimulationWorld world = SimulationWorld.getInstance();
         
-        int worldWidth = world.getMatrix().getTotalWidth();
-        int worldHeight = world.getMatrix().getTotalHeight();
-        double centerX = worldWidth / 2.0;
-        double centerY = worldHeight / 2.0;
+        double centerX = world.getTotalWidth() / 2.0;
+        double centerY = world.getTotalHeight() / 2.0;
         
+        // Create central sun
         Food sun = new Food(centerX, centerY, 0);
         sun.setMass(1000);
         sun.setColor(new Color(255, 200, 0));
@@ -69,30 +67,30 @@ public class Main {
         sun.setStatic(true);
         world.addEntity(sun);
         
+        // Create initial cell
         Cell cell = new Cell(100, 100);
         cell.setSize(20);
         cell.setColor(Color.MAGENTA);
         cell.setVelocity(10, 10);
         world.addEntity(cell);
         
-        // OPTIMIZATION: Start with fewer particles
+        // Create initial food
         createOrbitingFood(8000);
         
         System.out.println("Scene created with " + world.getEntityCount() + " entities");
+        System.out.println("Press G to toggle gradient visualization");
         System.out.println("Hover over entities to see their info!");
     }
     
     private static void createOrbitingFood(int count) {
         SimulationWorld world = SimulationWorld.getInstance();
         
-        int worldWidth = world.getMatrix().getTotalWidth();
-        int worldHeight = world.getMatrix().getTotalHeight();
-        double centerX = worldWidth / 2.0;
-        double centerY = worldHeight / 2.0;
+        double centerX = world.getTotalWidth() / 2.0;
+        double centerY = world.getTotalHeight() / 2.0;
         
         for (int i = 0; i < count; i++) {
-            double x = world.getRandom().nextDouble() * worldWidth;
-            double y = world.getRandom().nextDouble() * worldHeight;
+            double x = world.getRandom().nextDouble() * world.getTotalWidth();
+            double y = world.getRandom().nextDouble() * world.getTotalHeight();
             
             Food food = new Food(x, y);
             food.setMass(1);

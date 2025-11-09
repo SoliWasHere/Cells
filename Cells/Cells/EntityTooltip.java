@@ -1,4 +1,4 @@
-//ENTITYTOOLTIP.JAVA
+//ENTITYTOOLTIP.JAVA (UPDATED FOR GRADIENTS)
 
 package Cells;
 
@@ -115,6 +115,9 @@ public class EntityTooltip {
             addFoodInfo(lines, (Food) entity);
         }
         
+        // Gradient info
+        addGradientInfo(lines, entity);
+        
         return lines.toArray(new String[0]);
     }
     
@@ -123,19 +126,10 @@ public class EntityTooltip {
      */
     private static void addCellInfo(java.util.List<String> lines, Cell cell) {
         lines.add("--- Cell Data ---");
-
-        // Energy (assume primitive double, can't be null)
         lines.add(String.format("Energy: %.1f", cell.getEnergy()));
-
-        // Age (nullable Double)
-        Integer age = cell.getAge();
-        lines.add(String.format("Age: %.1f ticks", age != null ? age : 0.0));
-
-        // Movement Force (nullable Double)
-        Double movementForce = cell.getMovementForce();
-        lines.add(String.format("Movement Force: %.1f", movementForce != null ? movementForce : 0.0));
+        lines.add(String.format("Age: %d ticks", cell.getAge()));
+        lines.add(String.format("Movement Force: %.1f", cell.getMovementForce()));
     }
-
     
     /**
      * Add Food-specific information.
@@ -143,6 +137,23 @@ public class EntityTooltip {
     private static void addFoodInfo(java.util.List<String> lines, Food food) {
         lines.add("--- Food Data ---");
         lines.add(String.format("Nutrition: %.1f", food.getNutritionalValue()));
+    }
+    
+    /**
+     * Add gradient field information at entity position.
+     */
+    private static void addGradientInfo(java.util.List<String> lines, PhysicsObj entity) {
+        SimulationWorld world = SimulationWorld.getInstance();
+        
+        // Sample food gradient
+        GradientSample foodGrad = world.getFoodGradientField().sample(entity.getX(), entity.getY());
+        
+        // Sample cell gradient
+        GradientSample cellGrad = world.getCellGradientField().sample(entity.getX(), entity.getY());
+        
+        lines.add("--- Gradient Info ---");
+        lines.add(String.format("Food Gradient: %.1f", foodGrad.strength));
+        lines.add(String.format("Cell Gradient: %.1f", cellGrad.strength));
     }
     
     /**
