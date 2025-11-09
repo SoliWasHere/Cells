@@ -78,7 +78,7 @@ public class InputManager {
             }
             
             // Clamp zoom
-            displayer.zoom = Math.max(0.1, Math.min(5.0, displayer.zoom));
+            displayer.zoom = Math.max(0.01, Math.min(100.0, displayer.zoom));
         }
     }
     

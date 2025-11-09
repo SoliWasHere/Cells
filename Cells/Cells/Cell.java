@@ -65,7 +65,7 @@ public class Cell extends PhysicsObj {
         
         // Drop food with remaining energy
         Food food = new Food(this.getX(), this.getY());
-        food.setNutritionalValue(Math.max(0, energy - 10));
+        food.setNutritionalValue(Math.max(0, energy));
         food.setColor(new Color(
             (int) (255 - Math.min(255, food.getNutritionalValue() * 2)),
             255,
@@ -89,7 +89,7 @@ public class Cell extends PhysicsObj {
         SimulationWorld world = SimulationWorld.getInstance();
         world.getCellGradientField().updateSource(cellGradientSource, oldX, oldY);
         
-        if (energy <= 0) {
+        if (energy <= 10) {
             destroy();
             return;
         }
@@ -175,6 +175,10 @@ public class Cell extends PhysicsObj {
             }
         }
     }
+
+    private double a() {
+        return MathFunctions.evolve(evolveRate) + 1;
+    }
     
     /**
      * Reproduce and mutate.
@@ -186,17 +190,16 @@ public class Cell extends PhysicsObj {
         offspring.setEnergy(eatingDistance * 50);
         
         // Mutate parameters
-        double mutate = MathFunctions.evolve(evolveRate) + 1;
         
-        offspring.setReproductionThreshold(this.reproductionThreshold * mutate);
-        offspring.setMovementForce(this.movementForce * mutate);
-        offspring.setEatingDistance(this.eatingDistance * mutate);
+        offspring.setReproductionThreshold(this.reproductionThreshold * a());
+        offspring.setMovementForce(this.movementForce * a());
+        offspring.setEatingDistance(this.eatingDistance * a());
         
         // Mutate color
         offspring.setColor(new Color(
-            Math.min(255, Math.max(0, (int)(getColor().getRed() * mutate))),
-            Math.min(255, Math.max(0, (int)(getColor().getGreen() * mutate))),
-            Math.min(255, Math.max(0, (int)(getColor().getBlue() * mutate)))
+            Math.min(255, Math.max(0, (int)(getColor().getRed() * a()))),
+            Math.min(255, Math.max(0, (int)(getColor().getGreen() * a()))),
+            Math.min(255, Math.max(0, (int)(getColor().getBlue() * a())))
         ));
         
         SimulationWorld.getInstance().queueAddition(offspring);

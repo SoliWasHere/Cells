@@ -41,7 +41,7 @@ public class Main {
             world.update();
 
             // Spawn food periodically
-            if (cycles % 50 == 0) {
+            if (cycles % 1 == 0) {
                 createOrbitingFood(10);
             }
             
