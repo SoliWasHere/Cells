@@ -1,4 +1,4 @@
-//MAIN.JAVA (GRADIENT-BASED)
+//MAIN.JAVA (WITH ENVIRONMENTAL BIAS)
 
 package Cells;
 
@@ -7,7 +7,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 
 /**
- * Main entry point for gradient-based simulation.
+ * Main entry point with environmental food bias.
  */
 public class Main {
     private static Displayer displayer;
@@ -17,13 +17,13 @@ public class Main {
     private static boolean autoCamera = false;
     
     public static void main(String[] args) {
-        SimulationWorld.initialize(50, 200, 200);
+        SimulationWorld.initialize(50, 600, 600);
         SimulationWorld world = SimulationWorld.getInstance();
         
         inputManager = new InputManager();
         mouseManager = new MouseManager();
         
-        displayer = new Displayer( (int) world.getTotalWidth(), (int) world.getTotalHeight(), mouseManager);
+        displayer = new Displayer((int) world.getTotalWidth(), (int) world.getTotalHeight(), mouseManager);
         world.setDisplayer(displayer);
         
         setupKeyboard();
@@ -40,9 +40,9 @@ public class Main {
             
             world.update();
 
-            // Spawn food periodically
-            if ( (cycles % 1 == 0) && !world.isPaused()) {
-                createOrbitingFood(10);
+            // Spawn food periodically with environmental bias
+            if ((cycles % 1 == 0) && !world.isPaused() && (world.getEntityCount() < 10000)) {
+                createEnvironmentalFood(100);
             }
             
             world.processPendingChanges();
@@ -53,7 +53,10 @@ public class Main {
         }
     }
     
-    private static void createInitialScene() {
+    /**
+     * Create initial scene (public so SimulationWorld can call it for reset).
+     */
+    public static void createInitialScene() {
         SimulationWorld world = SimulationWorld.getInstance();
         
         double centerX = world.getTotalWidth() / 2.0;
@@ -70,29 +73,43 @@ public class Main {
         // Create initial cell
         Cell cell = new Cell(100, 100);
         cell.setSize(20);
-        cell.setColor(
-            new Color(125,125,125)
-        );
+        cell.setColor(new Color(125, 125, 125));
         cell.setVelocity(10, 10);
         world.addEntity(cell);
         
-        // Create initial food
-        createOrbitingFood(10000);
+        // Create initial food with environmental bias
+        createEnvironmentalFood(30000);
         
         System.out.println("Scene created with " + world.getEntityCount() + " entities");
-        System.out.println("Press G to toggle gradient visualization");
-        System.out.println("Hover over entities to see their info!");
+        System.out.println("Multi-channel gradient system active with " + MultiChannelGradientField.NUM_CHANNELS + " channels");
+        System.out.println("Food spawns biased by sin(x) + cos(y + x)");
     }
     
-    private static void createOrbitingFood(int count) {
+    /**
+     * Create food with environmental bias: more likely where sin(x) + cos(y + x) is higher.
+     */
+    private static void createEnvironmentalFood(int count) {
         SimulationWorld world = SimulationWorld.getInstance();
         
         double centerX = world.getTotalWidth() / 2.0;
         double centerY = world.getTotalHeight() / 2.0;
         
         for (int i = 0; i < count; i++) {
-            double x = world.getRandom().nextDouble() * world.getTotalWidth();
-            double y = world.getRandom().nextDouble() * world.getTotalHeight();
+            double x, y;
+            double bias;
+            
+            // Rejection sampling based on environmental function
+            do {
+                x = world.getRandom().nextDouble() * world.getTotalWidth();
+                y = world.getRandom().nextDouble() * world.getTotalHeight();
+                
+                // Environmental bias function (normalized to [0, 1])
+                double xScaled = x / 1000.0; // Scale for reasonable frequency
+                double yScaled = y / 1000.0;
+                bias = (Math.sin(xScaled) + Math.cos(yScaled + xScaled) + 2.0) / 4.0;
+                bias = Math.pow(bias, (double) 3);
+                
+            } while (world.getRandom().nextDouble() > bias);
             
             Food food = new Food(x, y);
             food.setMass(1);
@@ -115,9 +132,8 @@ public class Main {
                 Math.sin(perpAngle) * speed
             );
             
-            food.dampingFactor = 1.0;
-
-            food.setFoodId(1,1);
+            food.dampingFactor = 0.95;
+            food.setFoodId(Math.random(), Math.random());
             
             world.addEntity(food);
         }

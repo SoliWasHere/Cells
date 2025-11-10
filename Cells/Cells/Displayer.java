@@ -1,4 +1,4 @@
-//DISPLAYER.JAVA (WITH LOOPING AND MIXED GRADIENTS)
+//DISPLAYER.JAVA (WITH MULTI-CHANNEL VISUALIZATION)
 
 package Cells;
 
@@ -7,7 +7,7 @@ import java.awt.image.BufferedImage;
 import java.util.List;
 
 /**
- * Handles rendering with looping walls and mixed gradient visualization.
+ * Handles rendering with multi-channel gradient visualization.
  */
 public class Displayer {
     private final DrawingPanel panel;
@@ -68,7 +68,7 @@ public class Displayer {
         clearBuffer();
         
         if (showGradientField) {
-            drawMixedGradientField(world.getFoodGradientField(), world.getCellGradientField());
+            drawMultiChannelGradientField();
         }
         
         drawEntitiesWithLooping(world.getEntities());
@@ -80,9 +80,13 @@ public class Displayer {
     }
     
     /**
-     * Draw mixed gradient field (food = green/yellow, cells = red).
+     * Draw multi-channel gradient field visualization.
+     * Channels 1-7 = food (mixed colors), Channel 0 = cells (red).
      */
-    private void drawMixedGradientField(GradientField foodField, GradientField cellField) {
+    private void drawMultiChannelGradientField() {
+        SimulationWorld world = SimulationWorld.getInstance();
+        MultiChannelGradientField multiField = world.getMultiChannelField();
+        
         int screenWidth = buffer.getWidth();
         int screenHeight = buffer.getHeight();
         
@@ -91,39 +95,69 @@ public class Displayer {
                 double worldX = screenToWorldX(screenX);
                 double worldY = screenToWorldY(screenY);
                 
-                // Sample both gradients
-                GradientSample foodSample = foodField.sample(worldX, worldY);
-                GradientSample cellSample = cellField.sample(worldX, worldY);
+                // Sample all channels
+                GradientSample[] samples = multiField.sampleAll(worldX, worldY);
                 
-                if (foodSample.strength > 0.1 || cellSample.strength > 0.1) {
-                    // Mix colors based on gradient strengths
-                    float foodIntensity = (float)Math.min(1.0, foodSample.strength / 100.0);
-                    float cellIntensity = (float)Math.min(1.0, cellSample.strength / 50.0);
+                // Cell repulsion (channel 0) - red
+                float cellIntensity = (float)Math.min(1.0, samples[0].strength / 50.0);
+                
+                // Food channels (1-7) - various colors mixed
+                float[] foodIntensities = new float[7];
+                float maxFoodIntensity = 0;
+                
+                for (int i = 1; i < samples.length; i++) {
+                    foodIntensities[i-1] = (float)Math.min(1.0, samples[i].strength / 100.0);
+                    maxFoodIntensity = Math.max(maxFoodIntensity, foodIntensities[i-1]);
+                }
+                
+                // Mix colors based on channel strengths
+                // Channels map to different hues
+                float red = cellIntensity * 0.6f;
+                float green = 0;
+                float blue = 0;
+                
+                for (int i = 0; i < 7; i++) {
+                    float hue = i / 7.0f; // Map channels to hue wheel
+                    Color channelColor = Color.getHSBColor(hue * 0.5f + 0.2f, 0.8f, foodIntensities[i]);
                     
-                    // Food = green/yellow, Cells = red
-                    float red = cellIntensity * 0.6f;
-                    float green = foodIntensity * 0.6f;
-                    float blue = 0.0f;
-                    float alpha = Math.max(foodIntensity, cellIntensity) * 0.4f;
-                    
-                    Color gradientColor = new Color(red, green, blue, alpha);
+                    red += channelColor.getRed() / 255.0f * foodIntensities[i] * 0.3f;
+                    green += channelColor.getGreen() / 255.0f * foodIntensities[i] * 0.3f;
+                    blue += channelColor.getBlue() / 255.0f * foodIntensities[i] * 0.3f;
+                }
+                
+                float alpha = Math.max(cellIntensity, maxFoodIntensity) * 0.4f;
+                
+                if (alpha > 0.05f) {
+                    Color gradientColor = new Color(
+                        Math.min(1.0f, red),
+                        Math.min(1.0f, green),
+                        Math.min(1.0f, blue),
+                        alpha
+                    );
                     g2.setColor(gradientColor);
                     
                     int size = gradientResolution;
                     g2.fillRect(screenX, screenY, size, size);
                     
                     // Draw direction arrows for strong gradients
-                    if (zoom > 0.5) {
-                        if (foodSample.strength > 10.0) {
-                            drawGradientArrow(screenX + size/2, screenY + size/2, 
-                                            foodSample.directionX, foodSample.directionY, 
-                                            foodIntensity, new Color(0.3f, 0.8f, 0.2f, 0.6f));
+                    if (zoom > 0.5 && maxFoodIntensity > 0.3f) {
+                        // Find dominant food channel
+                        int dominantChannel = 0;
+                        float maxIntensity = 0;
+                        for (int i = 0; i < 7; i++) {
+                            if (foodIntensities[i] > maxIntensity) {
+                                maxIntensity = foodIntensities[i];
+                                dominantChannel = i + 1;
+                            }
                         }
-                        if (cellSample.strength > 10.0) {
-                            drawGradientArrow(screenX + size/2, screenY + size/2, 
-                                            -cellSample.directionX, -cellSample.directionY, 
-                                            cellIntensity, new Color(0.8f, 0.2f, 0.2f, 0.6f));
-                        }
+                        
+                        GradientSample dominant = samples[dominantChannel];
+                        float hue = (dominantChannel - 1) / 7.0f;
+                        Color arrowColor = Color.getHSBColor(hue * 0.5f + 0.2f, 0.8f, 0.8f);
+                        
+                        drawGradientArrow(screenX + size/2, screenY + size/2, 
+                                        dominant.directionX, dominant.directionY, 
+                                        maxIntensity, arrowColor);
                     }
                 }
             }
@@ -167,7 +201,7 @@ public class Displayer {
         double worldWidth = world.getTotalWidth();
         double worldHeight = world.getTotalHeight();
         
-        // Draw in layers
+        // Draw in layers (Food, then Cells, then others)
         for (PhysicsObj entity : entities) {
             if (entity instanceof Food) {
                 drawEntityWithLooping(entity, worldWidth, worldHeight);
@@ -216,7 +250,7 @@ public class Displayer {
             drawEntity(entity, x, y - worldHeight);
         }
         
-        // Corner wrapping (if needed)
+        // Corner wrapping
         if (screenX < entityScreenSize && screenY < entityScreenSize) {
             drawEntity(entity, x + worldWidth, y + worldHeight);
         } else if (screenX > buffer.getWidth() - entityScreenSize && screenY < entityScreenSize) {
@@ -319,9 +353,6 @@ public class Displayer {
         drawText(String.format("Entities: %d", world.getEntityCount()), x, y);
         y += lineHeight;
         
-        drawText(String.format("Gravity: %.2f", world.getGravityConstant()), x, y);
-        y += lineHeight;
-        
         drawText(String.format("Time Step: %.3f", world.getTimeStep()), x, y);
         y += lineHeight;
         
@@ -331,7 +362,7 @@ public class Displayer {
         drawText(String.format("Zoom: %.2fx", zoom), x, y);
         y += lineHeight;
         
-        drawText(String.format("Gradient: %s", showGradientField ? "ON" : "OFF"), x, y);
+        drawText(String.format("Gradient: %s (%d channels)", showGradientField ? "ON" : "OFF", MultiChannelGradientField.NUM_CHANNELS), x, y);
         y += lineHeight;
         
         drawControlsHelp();

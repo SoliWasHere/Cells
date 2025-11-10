@@ -10,7 +10,7 @@ import java.awt.event.KeyEvent;
  */
 public class InputManager {
     private static final String[] PARAMETER_NAMES = {
-        "", "Gravity", "TimeStep", "Camera", "Entities", "Clear"
+        "", "Gone sorryy", "TimeStep", "Camera", "Entities", "Clear"
     };
     
     private boolean[] keys = new boolean[256];
@@ -109,9 +109,8 @@ public class InputManager {
         double factor = increase ? 1.1 : 0.9;
         
         switch (selectedParameter) {
-            case 1: // Gravity
-                adjustGravity(factor);
-                break;
+            case 1: 
+                System.out.println("GONE");
                 
             case 2: // Time step
                 adjustTimeStep(factor);
@@ -131,16 +130,6 @@ public class InputManager {
                 }
                 break;
         }
-    }
-    
-    /**
-     * Adjust gravity constant.
-     */
-    private void adjustGravity(double factor) {
-        SimulationWorld world = SimulationWorld.getInstance();
-        double newGravity = world.getGravityConstant() * factor;
-        world.setGravityConstant(newGravity);
-        System.out.printf("Gravity: %.2f\n", newGravity);
     }
     
     /**

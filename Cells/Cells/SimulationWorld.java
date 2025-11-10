@@ -1,20 +1,18 @@
-//SIMULATIONWORLD.JAVA (WITH COLLISION DETECTION)
+//SIMULATIONWORLD.JAVA (WITH MULTI-CHANNEL SYSTEM AND AUTO-RESET)
 
 package Cells;
 
-import java.awt.Color;
 import java.util.*;
 
 /**
- * Simulation world with gradient fields and collision detection.
+ * Simulation world with multi-channel gradient system and auto-reset.
  */
 public class SimulationWorld {
     private static SimulationWorld instance;
 
     private Displayer displayer;
     
-    private final GradientField foodGradientField;
-    private final GradientField cellGradientField;
+    private final MultiChannelGradientField multiChannelField;
     
     private final Map<Integer, List<PhysicsObj>> entitySpatialHash;
     private final int cellSize;
@@ -29,18 +27,15 @@ public class SimulationWorld {
     private final Random random;
     
     private double timeStep;
-    private double gravityConstant;
     private boolean paused;
     
     private int frameCount = 0;
     
-    private List<PhysicsObj> gravitySources = new ArrayList<>();
-    private int gravitySourcesUpdateFrame = -100;
-    private static final int GRAVITY_UPDATE_INTERVAL = 100;
-    private static final double GRAVITY_MASS_THRESHOLD = 100.0;
-    
-    // Collision detection
     private boolean collisionsEnabled = true;
+    
+    // Auto-reset tracking
+    private int framesWithoutCells = 0;
+    private static final int RESET_AFTER_FRAMES = 10; // 5 seconds at 60 FPS
     
     private SimulationWorld(int cellSize, int gridWidth, int gridHeight) {
         this.cellSize = cellSize;
@@ -49,17 +44,15 @@ public class SimulationWorld {
         this.totalWidth = cellSize * gridWidth;
         this.totalHeight = cellSize * gridHeight;
         
-        this.foodGradientField = new GradientField(cellSize, gridWidth, gridHeight, 300.0, 2.0);
-        this.cellGradientField = new GradientField(cellSize, gridWidth, gridHeight, 150.0, 2.5);
+        this.multiChannelField = new MultiChannelGradientField(cellSize, gridWidth, gridHeight);
         
         this.entitySpatialHash = new HashMap<>();
         this.entities = new ArrayList<>();
         this.pendingAdditions = new HashSet<>();
-        this.pendingRemovals = new HashSet<>();  // Changed from ArrayList to HashSet
+        this.pendingRemovals = new HashSet<>();
         this.random = new Random();
         
         this.timeStep = 0.1;
-        this.gravityConstant = 10.0;
         this.paused = true;
     }
     
@@ -98,7 +91,7 @@ public class SimulationWorld {
         pendingAdditions.clear();
         
         for (PhysicsObj entity : pendingRemovals) {
-            if (entities.contains(entity)) {  // Only remove if it exists
+            if (entities.contains(entity)) {
                 removeFromSpatialHash(entity);
                 entities.remove(entity);
                 entity.onRemovedFromWorld();
@@ -109,16 +102,13 @@ public class SimulationWorld {
     
     private void addToSpatialHash(PhysicsObj entity) {
         int hash = getSpatialHash(entity.getX(), entity.getY());
-        entity.setSpatialHashKey(hash);  // Store the hash key
+        entity.setSpatialHashKey(hash);
         entitySpatialHash.computeIfAbsent(hash, k -> new ArrayList<>()).add(entity);
     }
     
     private void removeFromSpatialHash(PhysicsObj entity) {
         Integer hash = entity.getSpatialHashKey();
-        if (hash == null) {
-            // Entity was never added to spatial hash
-            return;
-        }
+        if (hash == null) return;
         
         List<PhysicsObj> cell = entitySpatialHash.get(hash);
         if (cell != null) {
@@ -126,13 +116,10 @@ public class SimulationWorld {
             if (cell.isEmpty()) {
                 entitySpatialHash.remove(hash);
             }
-        } else {
-            throw new Error("NO SHOTTT AND NO WAYYY");
         }
         entity.setSpatialHashKey(null);
     }
     
-
     private void updateSpatialHash(PhysicsObj entity, double oldX, double oldY) {
         int oldHash = entity.getSpatialHashKey() != null 
             ? entity.getSpatialHashKey() 
@@ -149,7 +136,7 @@ public class SimulationWorld {
             }
             
             entitySpatialHash.computeIfAbsent(newHash, k -> new ArrayList<>()).add(entity);
-            entity.setSpatialHashKey(newHash);  // Update the stored hash
+            entity.setSpatialHashKey(newHash);
         }
     }
     
@@ -170,28 +157,16 @@ public class SimulationWorld {
         
         frameCount++;
         
-        // Update gravity sources periodically
-        if (frameCount - gravitySourcesUpdateFrame > GRAVITY_UPDATE_INTERVAL) {
-            updateGravitySources();
-            gravitySourcesUpdateFrame = frameCount;
-        }
-        
-        // Apply gravity
-        if (!gravitySources.isEmpty()) {
-            for (PhysicsObj entity : entities) {
-                if (entity.isStatic()) continue;
-                
-                for (PhysicsObj source : gravitySources) {
-                    if (source != entity) {
-                        double dx = Math.abs(entity.getX() - source.getX());
-                        double dy = Math.abs(entity.getY() - source.getY());
-                        
-                        if (dx < 500 && dy < 500) {
-                            entity.applyGravityFrom(source);
-                        }
-                    }
-                }
+        // Check for cell extinction
+        if (countCells() == 0) {
+            framesWithoutCells++;
+            if (framesWithoutCells >= RESET_AFTER_FRAMES) {
+                System.out.println("No cells remaining. Resetting world...");
+                resetWorld();
+                return;
             }
+        } else {
+            framesWithoutCells = 0;
         }
         
         // Update all entities
@@ -211,11 +186,36 @@ public class SimulationWorld {
     }
     
     /**
-     * Handle collisions between all entities using spatial hashing.
-     * Uses iterative resolution to ensure no overlapping.
+     * Count number of Cell entities in the world.
      */
+    private int countCells() {
+        int count = 0;
+        for (PhysicsObj entity : entities) {
+            if (entity instanceof Cell) {
+                count++;
+            }
+        }
+        return count;
+    }
+    
+    /**
+     * Reset the entire world to initial conditions.
+     */
+    private void resetWorld() {
+        // Clear everything
+        clear();
+        
+        // Reset frame counter
+        frameCount = 0;
+        framesWithoutCells = 0;
+        
+        // Recreate initial scene (delegate to Main)
+        Main.createInitialScene();
+        
+        System.out.println("World reset complete!");
+    }
+    
     private void handleCollisions() {
-        // Perform multiple iterations to resolve all collisions
         final int MAX_ITERATIONS = 3;
         
         for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
@@ -228,7 +228,6 @@ public class SimulationWorld {
                 int gridX = (int)(entity.getX() / cellSize);
                 int gridY = (int)(entity.getY() / cellSize);
                 
-                // Check this cell and adjacent cells (3x3 grid)
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dy = -1; dy <= 1; dy++) {
                         int checkX = (gridX + dx + gridWidth) % gridWidth;
@@ -239,7 +238,6 @@ public class SimulationWorld {
                         for (PhysicsObj other : nearbyEntities) {
                             if (entity == other) continue;
                             
-                            // Create unique pair identifier (sorted to avoid duplicates)
                             int hash1 = System.identityHashCode(entity);
                             int hash2 = System.identityHashCode(other);
                             String pairKey = hash1 < hash2 
@@ -249,7 +247,6 @@ public class SimulationWorld {
                             if (checkedPairs.contains(pairKey)) continue;
                             checkedPairs.add(pairKey);
                             
-                            // Check collision
                             Vector2D delta = getWrappedDelta(entity.getX(), entity.getY(), other.getX(), other.getY());
                             double distance = delta.magnitude();
                             double minDistance = (entity.getSize() + other.getSize()) / 2.0;
@@ -263,17 +260,7 @@ public class SimulationWorld {
                 }
             }
             
-            // If no collisions this iteration, we're done
             if (!hadCollision) break;
-        }
-    }
-    
-    private void updateGravitySources() {
-        gravitySources.clear();
-        for (PhysicsObj entity : entities) {
-            if (entity.getMass() >= GRAVITY_MASS_THRESHOLD) {
-                gravitySources.add(entity);
-            }
         }
     }
     
@@ -281,19 +268,15 @@ public class SimulationWorld {
         entities.clear();
         pendingAdditions.clear();
         pendingRemovals.clear();
-        gravitySources.clear();
         entitySpatialHash.clear();
-        foodGradientField.clear();
-        cellGradientField.clear();
+        multiChannelField.clear();
     }
     
     // Getters
-    public GradientField getFoodGradientField() { return foodGradientField; }
-    public GradientField getCellGradientField() { return cellGradientField; }
+    public MultiChannelGradientField getMultiChannelField() { return multiChannelField; }
     public List<PhysicsObj> getEntities() { return new ArrayList<>(entities); }
     public Random getRandom() { return random; }
     public double getTimeStep() { return timeStep; }
-    public double getGravityConstant() { return gravityConstant; }
     public boolean isPaused() { return paused; }
     public int getEntityCount() { return entities.size(); }
     public int getFrameCount() { return frameCount; }
@@ -304,10 +287,6 @@ public class SimulationWorld {
     // Setters
     public void setTimeStep(double timeStep) {
         this.timeStep = Math.max(0.01, Math.min(10.0, timeStep));
-    }
-    
-    public void setGravityConstant(double gravityConstant) {
-        this.gravityConstant = Math.max(0.0, gravityConstant);
     }
     
     public void setPaused(boolean paused) {

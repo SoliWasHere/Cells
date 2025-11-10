@@ -79,20 +79,6 @@ public abstract class PhysicsObj {
         applyForce(force.x, force.y);
     }
     
-    public void applyGravityFrom(PhysicsObj other) {
-        SimulationWorld world = SimulationWorld.getInstance();
-        
-        Vector2D delta = world.getWrappedDelta(x, y, other.x, other.y);
-        double distance = delta.magnitude();
-        
-        if (distance < 10) distance = 10;
-        
-        double forceMagnitude = (world.getGravityConstant() * mass * other.mass) / (distance * distance);
-        
-        Vector2D direction = delta.normalize();
-        applyForce(direction.scale(forceMagnitude));
-    }
-    
     /**
      * Handle collision with another physics object.
      * Ensures proper separation and applies elastic collision physics.
