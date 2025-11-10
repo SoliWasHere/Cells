@@ -28,6 +28,12 @@ public class MathFunctions {
         
         return b * multiplier;
     }
+
+    public static double realMod(double x, double i) {
+        return (
+            (((x % i) + i) % i)
+        );
+    }
     
     /**
      * Normalize a vector to unit length.

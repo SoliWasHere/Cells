@@ -1,11 +1,11 @@
-//SIMULATIONWORLD.JAVA (GRADIENT-BASED)
+//SIMULATIONWORLD.JAVA (WITH COLLISION DETECTION)
 
 package Cells;
 
 import java.util.*;
 
 /**
- * Simulation world using gradient fields for entity behavior.
+ * Simulation world with gradient fields and collision detection.
  */
 public class SimulationWorld {
     private static SimulationWorld instance;
@@ -15,7 +15,6 @@ public class SimulationWorld {
     private final GradientField foodGradientField;
     private final GradientField cellGradientField;
     
-    // Simple spatial hash for entity storage (for eating, collision, etc.)
     private final Map<Integer, List<PhysicsObj>> entitySpatialHash;
     private final int cellSize;
     private final int gridWidth;
@@ -34,11 +33,13 @@ public class SimulationWorld {
     
     private int frameCount = 0;
     
-    // Gravity sources cache
     private List<PhysicsObj> gravitySources = new ArrayList<>();
     private int gravitySourcesUpdateFrame = -100;
     private static final int GRAVITY_UPDATE_INTERVAL = 100;
     private static final double GRAVITY_MASS_THRESHOLD = 100.0;
+    
+    // Collision detection
+    private boolean collisionsEnabled = true;
     
     private SimulationWorld(int cellSize, int gridWidth, int gridHeight) {
         this.cellSize = cellSize;
@@ -47,7 +48,6 @@ public class SimulationWorld {
         this.totalWidth = cellSize * gridWidth;
         this.totalHeight = cellSize * gridHeight;
         
-        // Create gradient fields
         this.foodGradientField = new GradientField(cellSize, gridWidth, gridHeight, 300.0, 2.0);
         this.cellGradientField = new GradientField(cellSize, gridWidth, gridHeight, 150.0, 2.5);
         
@@ -104,17 +104,11 @@ public class SimulationWorld {
         pendingRemovals.clear();
     }
     
-    /**
-     * Add entity to spatial hash.
-     */
     private void addToSpatialHash(PhysicsObj entity) {
         int hash = getSpatialHash(entity.getX(), entity.getY());
         entitySpatialHash.computeIfAbsent(hash, k -> new ArrayList<>()).add(entity);
     }
     
-    /**
-     * Remove entity from spatial hash.
-     */
     private void removeFromSpatialHash(PhysicsObj entity) {
         int hash = getSpatialHash(entity.getX(), entity.getY());
         List<PhysicsObj> cell = entitySpatialHash.get(hash);
@@ -123,12 +117,11 @@ public class SimulationWorld {
             if (cell.isEmpty()) {
                 entitySpatialHash.remove(hash);
             }
+        } else {
+            throw new IllegalCallerException("NO SHOT");
         }
     }
     
-    /**
-     * Update entity position in spatial hash.
-     */
     private void updateSpatialHash(PhysicsObj entity, double oldX, double oldY) {
         int oldHash = getSpatialHash(oldX, oldY);
         int newHash = getSpatialHash(entity.getX(), entity.getY());
@@ -146,18 +139,12 @@ public class SimulationWorld {
         }
     }
     
-    /**
-     * Get spatial hash key.
-     */
     private int getSpatialHash(double x, double y) {
         int gridX = ((int)(x / cellSize) % gridWidth + gridWidth) % gridWidth;
         int gridY = ((int)(y / cellSize) % gridHeight + gridHeight) % gridHeight;
         return gridX + gridY * gridWidth;
     }
     
-    /**
-     * Get entities in a specific spatial cell.
-     */
     public List<PhysicsObj> getEntitiesInSpatialCell(int gridX, int gridY) {
         int hash = gridX + gridY * gridWidth;
         List<PhysicsObj> cell = entitySpatialHash.get(hash);
@@ -202,6 +189,69 @@ public class SimulationWorld {
             
             updateSpatialHash(entity, oldX, oldY);
         }
+        
+        // Handle collisions
+        if (collisionsEnabled) {
+            handleCollisions();
+        }
+    }
+    
+    /**
+     * Handle collisions between all entities using spatial hashing.
+     * Uses iterative resolution to ensure no overlapping.
+     */
+    private void handleCollisions() {
+        // Perform multiple iterations to resolve all collisions
+        final int MAX_ITERATIONS = 3;
+        
+        for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+            Set<String> checkedPairs = new HashSet<>();
+            boolean hadCollision = false;
+            
+            for (PhysicsObj entity : entities) {
+                if (entity.isStatic()) continue;
+                
+                int gridX = (int)(entity.getX() / cellSize);
+                int gridY = (int)(entity.getY() / cellSize);
+                
+                // Check this cell and adjacent cells (3x3 grid)
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dy = -1; dy <= 1; dy++) {
+                        int checkX = (gridX + dx + gridWidth) % gridWidth;
+                        int checkY = (gridY + dy + gridHeight) % gridHeight;
+                        
+                        List<PhysicsObj> nearbyEntities = getEntitiesInSpatialCell(checkX, checkY);
+                        
+                        for (PhysicsObj other : nearbyEntities) {
+                            if (entity == other) continue;
+                            
+                            // Create unique pair identifier (sorted to avoid duplicates)
+                            int hash1 = System.identityHashCode(entity);
+                            int hash2 = System.identityHashCode(other);
+                            String pairKey = hash1 < hash2 
+                                ? hash1 + "," + hash2
+                                : hash2 + "," + hash1;
+                            
+                            if (checkedPairs.contains(pairKey)) continue;
+                            checkedPairs.add(pairKey);
+                            
+                            // Check collision
+                            Vector2D delta = getWrappedDelta(entity.getX(), entity.getY(), other.getX(), other.getY());
+                            double distance = delta.magnitude();
+                            double minDistance = (entity.getSize() + other.getSize()) / 2.0;
+                            
+                            if (distance < minDistance) {
+                                entity.handleCollision(other);
+                                hadCollision = true;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // If no collisions this iteration, we're done
+            if (!hadCollision) break;
+        }
     }
     
     private void updateGravitySources() {
@@ -235,6 +285,7 @@ public class SimulationWorld {
     public int getFrameCount() { return frameCount; }
     public int getTotalWidth() { return totalWidth; }
     public int getTotalHeight() { return totalHeight; }
+    public boolean areCollisionsEnabled() { return collisionsEnabled; }
     
     // Setters
     public void setTimeStep(double timeStep) {
@@ -255,6 +306,10 @@ public class SimulationWorld {
 
     public Displayer getDisplayer() {
         return displayer;
+    }
+    
+    public void setCollisionsEnabled(boolean enabled) {
+        this.collisionsEnabled = enabled;
     }
     
     // Utility methods

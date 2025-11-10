@@ -1,4 +1,4 @@
-//DISPLAYER.JAVA (WITH GRADIENT VISUALIZATION)
+//DISPLAYER.JAVA (WITH LOOPING AND MIXED GRADIENTS)
 
 package Cells;
 
@@ -7,7 +7,7 @@ import java.awt.image.BufferedImage;
 import java.util.List;
 
 /**
- * Handles rendering with gradient field visualization.
+ * Handles rendering with looping walls and mixed gradient visualization.
  */
 public class Displayer {
     private final DrawingPanel panel;
@@ -22,23 +22,19 @@ public class Displayer {
     public double cameraY;
     public double zoom;
     
-    // Camera smoothing
     private static final double CAMERA_SMOOTH = 0.05;
     private static final double ZOOM_SMOOTH = 0.1;
     private static final double ZOOM_MARGIN = 100.0;
     
-    // Visual constants
     private static final Color BACKGROUND_COLOR = new Color(10, 10, 15);
     private static final Color UI_TEXT_COLOR = new Color(200, 200, 200);
+    private static final Color LOOP_LINE_COLOR = new Color(255, 255, 255, 50);
     private static final Font UI_FONT = new Font("Monospaced", Font.PLAIN, 12);
     
     // Gradient visualization
     private boolean showGradientField = true;
-    private int gradientResolution = 20; // Sample every N pixels
+    private int gradientResolution = 20;
     
-    /**
-     * Create a new displayer for the simulation.
-     */
     public Displayer(int width, int height, MouseManager mouseManager) {
         this.panel = new DrawingPanel(Math.min(1000, width), Math.min(1000, height));
         this.buffer = new BufferedImage(
@@ -50,7 +46,6 @@ public class Displayer {
         this.panelGraphics = panel.getGraphics();
         this.mouseManager = mouseManager;
         
-        // Initialize camera at center
         this.cameraX = width / 2.0;
         this.cameraY = height / 2.0;
         this.zoom = 1.0;
@@ -58,9 +53,6 @@ public class Displayer {
         setupRenderingHints();
     }
     
-    /**
-     * Configure rendering quality settings.
-     */
     private void setupRenderingHints() {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, 
                            RenderingHints.VALUE_ANTIALIAS_ON);
@@ -70,59 +62,68 @@ public class Displayer {
                            RenderingHints.VALUE_INTERPOLATION_BILINEAR);
     }
     
-    /**
-     * Main render method - draws the entire scene.
-     */
     public void display() {
         SimulationWorld world = SimulationWorld.getInstance();
         
         clearBuffer();
         
         if (showGradientField) {
-            drawGradientField(world.getFoodGradientField());
+            drawMixedGradientField(world.getFoodGradientField(), world.getCellGradientField());
         }
         
-        drawEntities(world.getEntities());
+        drawEntitiesWithLooping(world.getEntities());
+        drawLoopLines();
         drawUI(world);
         drawTooltips();
         
-        // Copy buffer to screen
         panelGraphics.drawImage(buffer, 0, 0, null);
     }
     
     /**
-     * Draw the food gradient field as a heatmap.
+     * Draw mixed gradient field (food = green/yellow, cells = red).
      */
-    private void drawGradientField(GradientField field) {
+    private void drawMixedGradientField(GradientField foodField, GradientField cellField) {
         int screenWidth = buffer.getWidth();
         int screenHeight = buffer.getHeight();
         
-        // Sample gradient at regular intervals
         for (int screenX = 0; screenX < screenWidth; screenX += gradientResolution) {
             for (int screenY = 0; screenY < screenHeight; screenY += gradientResolution) {
-                // Convert screen to world coordinates
                 double worldX = screenToWorldX(screenX);
                 double worldY = screenToWorldY(screenY);
                 
-                // Sample gradient
-                GradientSample sample = field.sample(worldX, worldY);
+                // Sample both gradients
+                GradientSample foodSample = foodField.sample(worldX, worldY);
+                GradientSample cellSample = cellField.sample(worldX, worldY);
                 
-                if (sample.strength > 0.1) {
-                    // Draw gradient strength as color intensity
-                    float intensity = (float)Math.min(1.0, sample.strength / 100.0);
+                if (foodSample.strength > 0.1 || cellSample.strength > 0.1) {
+                    // Mix colors based on gradient strengths
+                    float foodIntensity = (float)Math.min(1.0, foodSample.strength / 100.0);
+                    float cellIntensity = (float)Math.min(1.0, cellSample.strength / 50.0);
                     
-                    // Blue gradient for food
-                    Color gradientColor = new Color(0.0f, 0.3f * intensity, 0.8f * intensity, 0.3f * intensity);
+                    // Food = green/yellow, Cells = red
+                    float red = cellIntensity * 0.6f;
+                    float green = foodIntensity * 0.6f;
+                    float blue = 0.0f;
+                    float alpha = Math.max(foodIntensity, cellIntensity) * 0.4f;
+                    
+                    Color gradientColor = new Color(red, green, blue, alpha);
                     g2.setColor(gradientColor);
                     
                     int size = gradientResolution;
                     g2.fillRect(screenX, screenY, size, size);
                     
-                    // Draw direction arrow if gradient is strong
-                    if (sample.strength > 10.0 && zoom > 0.5) {
-                        drawGradientArrow(screenX + size/2, screenY + size/2, 
-                                        sample.directionX, sample.directionY, 
-                                        intensity);
+                    // Draw direction arrows for strong gradients
+                    if (zoom > 0.5) {
+                        if (foodSample.strength > 10.0) {
+                            drawGradientArrow(screenX + size/2, screenY + size/2, 
+                                            foodSample.directionX, foodSample.directionY, 
+                                            foodIntensity, new Color(0.3f, 0.8f, 0.2f, 0.6f));
+                        }
+                        if (cellSample.strength > 10.0) {
+                            drawGradientArrow(screenX + size/2, screenY + size/2, 
+                                            -cellSample.directionX, -cellSample.directionY, 
+                                            cellIntensity, new Color(0.8f, 0.2f, 0.2f, 0.6f));
+                        }
                     }
                 }
             }
@@ -130,10 +131,10 @@ public class Displayer {
     }
     
     /**
-     * Draw a small arrow showing gradient direction.
+     * Draw gradient arrow with specified color.
      */
-    private void drawGradientArrow(int x, int y, double dirX, double dirY, float intensity) {
-        g2.setColor(new Color(0.5f, 0.8f, 1.0f, 0.5f * intensity));
+    private void drawGradientArrow(int x, int y, double dirX, double dirY, float intensity, Color color) {
+        g2.setColor(new Color(color.getRed()/255f, color.getGreen()/255f, color.getBlue()/255f, intensity * 0.5f));
         
         int arrowLength = (int)(gradientResolution * 0.4);
         int endX = x + (int)(dirX * arrowLength);
@@ -142,7 +143,7 @@ public class Displayer {
         g2.setStroke(new BasicStroke(1.5f));
         g2.drawLine(x, y, endX, endY);
         
-        // Draw arrowhead
+        // Arrowhead
         double angle = Math.atan2(dirY, dirX);
         int headSize = 3;
         int[] xPoints = {
@@ -159,33 +160,125 @@ public class Displayer {
     }
     
     /**
-     * Update camera to follow entities smoothly.
+     * Draw entities with looping (show copies across boundaries).
      */
+    private void drawEntitiesWithLooping(List<PhysicsObj> entities) {
+        SimulationWorld world = SimulationWorld.getInstance();
+        double worldWidth = world.getTotalWidth();
+        double worldHeight = world.getTotalHeight();
+        
+        // Draw in layers
+        for (PhysicsObj entity : entities) {
+            if (entity instanceof Food) {
+                drawEntityWithLooping(entity, worldWidth, worldHeight);
+            }
+        }
+        
+        for (PhysicsObj entity : entities) {
+            if (entity instanceof Cell) {
+                drawEntityWithLooping(entity, worldWidth, worldHeight);
+            }
+        }
+        
+        for (PhysicsObj entity : entities) {
+            if (!(entity instanceof Food) && !(entity instanceof Cell)) {
+                drawEntityWithLooping(entity, worldWidth, worldHeight);
+            }
+        }
+    }
+    
+    /**
+     * Draw an entity and its looping copies if they're visible.
+     */
+    private void drawEntityWithLooping(PhysicsObj entity, double worldWidth, double worldHeight) {
+        double x = entity.getX();
+        double y = entity.getY();
+        
+        // Draw main entity
+        drawEntity(entity, x, y);
+        
+        // Check if entity is near boundaries and draw copies
+        double screenX = worldToScreenX(x);
+        double screenY = worldToScreenY(y);
+        double entityScreenSize = entity.getSize() * zoom;
+        
+        // Left/Right wrapping
+        if (screenX < entityScreenSize) {
+            drawEntity(entity, x + worldWidth, y);
+        } else if (screenX > buffer.getWidth() - entityScreenSize) {
+            drawEntity(entity, x - worldWidth, y);
+        }
+        
+        // Top/Bottom wrapping
+        if (screenY < entityScreenSize) {
+            drawEntity(entity, x, y + worldHeight);
+        } else if (screenY > buffer.getHeight() - entityScreenSize) {
+            drawEntity(entity, x, y - worldHeight);
+        }
+        
+        // Corner wrapping (if needed)
+        if (screenX < entityScreenSize && screenY < entityScreenSize) {
+            drawEntity(entity, x + worldWidth, y + worldHeight);
+        } else if (screenX > buffer.getWidth() - entityScreenSize && screenY < entityScreenSize) {
+            drawEntity(entity, x - worldWidth, y + worldHeight);
+        } else if (screenX < entityScreenSize && screenY > buffer.getHeight() - entityScreenSize) {
+            drawEntity(entity, x + worldWidth, y - worldHeight);
+        } else if (screenX > buffer.getWidth() - entityScreenSize && screenY > buffer.getHeight() - entityScreenSize) {
+            drawEntity(entity, x - worldWidth, y - worldHeight);
+        }
+    }
+    
+    /**
+     * Draw a single entity at specific world coordinates.
+     */
+    private void drawEntity(PhysicsObj entity, double worldX, double worldY) {
+        g2.setColor(entity.getColor());
+        drawCircle(worldX, worldY, entity.getSize());
+    }
+    
+    /**
+     * Draw thin white lines showing where the world loops.
+     */
+    private void drawLoopLines() {
+        SimulationWorld world = SimulationWorld.getInstance();
+        double worldWidth = world.getTotalWidth();
+        double worldHeight = world.getTotalHeight();
+        
+        g2.setColor(LOOP_LINE_COLOR);
+        g2.setStroke(new BasicStroke(1.0f));
+        
+        // Draw vertical lines
+        for (double worldX = 0; worldX <= worldWidth; worldX += worldWidth) {
+            double screenX = worldToScreenX(worldX);
+            if (screenX >= 0 && screenX <= buffer.getWidth()) {
+                g2.drawLine((int)screenX, 0, (int)screenX, buffer.getHeight());
+            }
+        }
+        
+        // Draw horizontal lines
+        for (double worldY = 0; worldY <= worldHeight; worldY += worldHeight) {
+            double screenY = worldToScreenY(worldY);
+            if (screenY >= 0 && screenY <= buffer.getHeight()) {
+                g2.drawLine(0, (int)screenY, buffer.getWidth(), (int)screenY);
+            }
+        }
+    }
+    
     public void updateCamera(List<PhysicsObj> entities) {
         if (entities.isEmpty()) return;
         
-        // Calculate center of mass
         Vector2D centerOfMass = calculateCenterOfMass(entities);
-        
-        // Calculate ideal zoom based on entity spread
         double idealZoom = calculateIdealZoom(entities);
         
-        // Smoothly interpolate camera position
         cameraX += (centerOfMass.x - cameraX) * CAMERA_SMOOTH;
         cameraY += (centerOfMass.y - cameraY) * CAMERA_SMOOTH;
-        
-        // Smoothly interpolate zoom
         zoom += (idealZoom - zoom) * ZOOM_SMOOTH;
     }
 
-    /**
-     * Draw tooltip for hovered entity.
-     */
     private void drawTooltips() {
         if (mouseManager.isHoveringEntity()) {
             PhysicsObj hoveredEntity = mouseManager.getHoveredEntity();
             
-            // Highlight hovered entity
             g2.setColor(new Color(255, 255, 255, 100));
             g2.setStroke(new BasicStroke(2));
             double screenX = worldToScreenX(hoveredEntity.getX());
@@ -199,7 +292,6 @@ public class Displayer {
                 screenSize + 6
             );
             
-            // Draw tooltip
             EntityTooltip.draw(
                 g2, 
                 hoveredEntity, 
@@ -211,50 +303,11 @@ public class Displayer {
         }
     }
     
-    /**
-     * Clear the render buffer.
-     */
     private void clearBuffer() {
         g2.setColor(BACKGROUND_COLOR);
         g2.fillRect(0, 0, buffer.getWidth(), buffer.getHeight());
     }
     
-    /**
-     * Draw all entities in the world.
-     */
-    private void drawEntities(List<PhysicsObj> entities) {
-        // Draw in layers: food first, then cells
-        for (PhysicsObj entity : entities) {
-            if (entity instanceof Food) {
-                drawEntity(entity);
-            }
-        }
-        
-        for (PhysicsObj entity : entities) {
-            if (entity instanceof Cell) {
-                drawEntity(entity);
-            }
-        }
-        
-        // Draw other entities
-        for (PhysicsObj entity : entities) {
-            if (!(entity instanceof Food) && !(entity instanceof Cell)) {
-                drawEntity(entity);
-            }
-        }
-    }
-    
-    /**
-     * Draw a single entity.
-     */
-    private void drawEntity(PhysicsObj entity) {
-        g2.setColor(entity.getColor());
-        drawCircle(entity.getX(), entity.getY(), entity.getSize());
-    }
-    
-    /**
-     * Draw UI overlay with simulation stats.
-     */
     private void drawUI(SimulationWorld world) {
         g2.setColor(UI_TEXT_COLOR);
         g2.setFont(UI_FONT);
@@ -263,7 +316,6 @@ public class Displayer {
         int y = 20;
         int lineHeight = 15;
         
-        // Simulation stats
         drawText(String.format("Entities: %d", world.getEntityCount()), x, y);
         y += lineHeight;
         
@@ -282,13 +334,9 @@ public class Displayer {
         drawText(String.format("Gradient: %s", showGradientField ? "ON" : "OFF"), x, y);
         y += lineHeight;
         
-        // Controls help (bottom of screen)
         drawControlsHelp();
     }
     
-    /**
-     * Draw controls help at bottom of screen.
-     */
     private void drawControlsHelp() {
         g2.setColor(new Color(150, 150, 150, 200));
         g2.setFont(new Font("Monospaced", Font.PLAIN, 10));
@@ -304,18 +352,10 @@ public class Displayer {
         }
     }
     
-    /**
-     * Draw text directly on buffer (no camera transform).
-     */
     private void drawText(String text, int x, int y) {
         g2.drawString(text, x, y);
     }
     
-    // === Drawing Primitives with Camera Transform ===
-    
-    /**
-     * Draw a filled circle in world coordinates.
-     */
     private void drawCircle(double worldX, double worldY, int size) {
         double screenX = worldToScreenX(worldX);
         double screenY = worldToScreenY(worldY);
@@ -329,41 +369,23 @@ public class Displayer {
         );
     }
     
-    // === Coordinate Conversion ===
-    
-    /**
-     * Convert screen X coordinate to world X coordinate.
-     */
+    // Coordinate conversion
     public double screenToWorldX(double screenX) {
         return (screenX - buffer.getWidth() / 2.0) / zoom + cameraX;
     }
     
-    /**
-     * Convert screen Y coordinate to world Y coordinate.
-     */
     public double screenToWorldY(double screenY) {
         return (screenY - buffer.getHeight() / 2.0) / zoom + cameraY;
     }
     
-    /**
-     * Convert world X coordinate to screen X coordinate.
-     */
     public double worldToScreenX(double worldX) {
         return (worldX - cameraX) * zoom + buffer.getWidth() / 2.0;
     }
     
-    /**
-     * Convert world Y coordinate to screen Y coordinate.
-     */
     public double worldToScreenY(double worldY) {
         return (worldY - cameraY) * zoom + buffer.getHeight() / 2.0;
     }
     
-    // === Camera Calculation Helpers ===
-    
-    /**
-     * Calculate the center of mass of all entities.
-     */
     private Vector2D calculateCenterOfMass(List<PhysicsObj> entities) {
         double totalMass = 0;
         double centerX = 0;
@@ -384,9 +406,6 @@ public class Displayer {
         return new Vector2D(centerX, centerY);
     }
     
-    /**
-     * Calculate ideal zoom level to fit all entities.
-     */
     private double calculateIdealZoom(List<PhysicsObj> entities) {
         if (entities.isEmpty()) return 1.0;
         
@@ -402,9 +421,6 @@ public class Displayer {
         return Math.max(0.1, Math.min(3.0, idealZoom));
     }
     
-    /**
-     * Calculate bounding box containing all entities.
-     */
     private BoundingBox calculateBoundingBox(List<PhysicsObj> entities) {
         if (entities.isEmpty()) {
             return new BoundingBox(0, 0, 0, 0);
@@ -429,8 +445,6 @@ public class Displayer {
         return new BoundingBox(minX, minY, maxX - minX, maxY - minY);
     }
     
-    // === Getters ===
-    
     public DrawingPanel getPanel() {
         return panel;
     }
@@ -447,9 +461,6 @@ public class Displayer {
         return showGradientField;
     }
     
-    /**
-     * Simple bounding box container.
-     */
     private static class BoundingBox {
         final double x, y, width, height;
         

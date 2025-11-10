@@ -41,7 +41,7 @@ public class Main {
             world.update();
 
             // Spawn food periodically
-            if (cycles % 1 == 0) {
+            if ( (cycles % 1 == 0) && !world.isPaused()) {
                 createOrbitingFood(10);
             }
             
@@ -75,7 +75,7 @@ public class Main {
         world.addEntity(cell);
         
         // Create initial food
-        createOrbitingFood(8000);
+        createOrbitingFood(10000);
         
         System.out.println("Scene created with " + world.getEntityCount() + " entities");
         System.out.println("Press G to toggle gradient visualization");

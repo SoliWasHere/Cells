@@ -1,4 +1,4 @@
-//PHYSICSOBJ.JAVA (SIMPLIFIED FOR GRADIENTS)
+//PHYSICSOBJ.JAVA (WITH COLLISION)
 
 package Cells;
 
@@ -19,6 +19,9 @@ public abstract class PhysicsObj {
     private Color color;
     private int size;
     private boolean isStatic;
+    
+    // Collision properties
+    private double restitution = 0.5; // Bounciness (0 = no bounce, 1 = perfect bounce)
     
     public PhysicsObj(double x, double y) {
         this.x = x;
@@ -65,7 +68,7 @@ public abstract class PhysicsObj {
     
     protected void onUpdate() {}
 
-public void applyForce(double fx, double fy) {
+    public void applyForce(double fx, double fy) {
         accelerationX += fx / mass;
         accelerationY += fy / mass;
     }
@@ -86,6 +89,117 @@ public void applyForce(double fx, double fy) {
         
         Vector2D direction = delta.normalize();
         applyForce(direction.scale(forceMagnitude));
+    }
+    
+    /**
+     * Handle collision with another physics object.
+     * Ensures proper separation and applies elastic collision physics.
+     */
+    public void handleCollision(PhysicsObj other) {
+        if (this.isStatic && other.isStatic) return;
+        
+        SimulationWorld world = SimulationWorld.getInstance();
+        
+        // Get wrapped delta (from this to other)
+        Vector2D delta = world.getWrappedDelta(this.x, this.y, other.x, other.y);
+        double distance = delta.magnitude();
+        
+        // Check if actually colliding
+        double minDistance = (this.size + other.size) / 2.0;
+        if (distance >= minDistance) return;
+        
+        // Prevent division by zero
+        if (distance < 0.1) {
+            // Objects are on top of each other - separate randomly
+            double angle = Math.random() * 2 * Math.PI;
+            delta = new Vector2D(Math.cos(angle), Math.sin(angle));
+            distance = 0.1;
+        }
+        
+        // Calculate overlap amount
+        double overlap = minDistance - distance;
+        
+        // Normalize the delta to get collision normal (points from this to other)
+        Vector2D normal = delta.normalize();
+        
+        // Separate objects based on mass ratio
+        if (!this.isStatic && !other.isStatic) {
+            // Both moveable - split separation inversely proportional to mass
+            double totalMass = this.mass + other.mass;
+            double pushThis = overlap * (other.mass / totalMass) * 1.01; // 1.01 adds tiny extra separation
+            double pushOther = overlap * (this.mass / totalMass) * 1.01;
+            
+            // Push this away from other
+            this.x -= normal.x * pushThis;
+            this.y -= normal.y * pushThis;
+            
+            // Push other away from this
+            other.x += normal.x * pushOther;
+            other.y += normal.y * pushOther;
+            
+            // Wrap coordinates
+            this.x = world.wrapX(this.x);
+            this.y = world.wrapY(this.y);
+            other.x = world.wrapX(other.x);
+            other.y = world.wrapY(other.y);
+        } else if (!this.isStatic) {
+            // Only this is moveable - push it away completely
+            this.x -= normal.x * overlap * 1.01;
+            this.y -= normal.y * overlap * 1.01;
+            this.x = world.wrapX(this.x);
+            this.y = world.wrapY(this.y);
+        } else {
+            // Only other is moveable - push it away completely
+            other.x += normal.x * overlap * 1.01;
+            other.y += normal.y * overlap * 1.01;
+            other.x = world.wrapX(other.x);
+            other.y = world.wrapY(other.y);
+        }
+        
+        // Apply velocity changes (impulse resolution)
+        if (!this.isStatic && !other.isStatic) {
+            // Relative velocity (velocity of this relative to other)
+            double relVelX = this.velocityX - other.velocityX;
+            double relVelY = this.velocityY - other.velocityY;
+            
+            // Relative velocity along collision normal
+            double relVelNormal = relVelX * normal.x + relVelY * normal.y;
+            
+            // Only resolve if objects are approaching
+            if (relVelNormal < 0) {
+                // Calculate impulse scalar
+                double restitutionAvg = (this.restitution + other.restitution) / 2.0;
+                double impulseMagnitude = -(1.0 + restitutionAvg) * relVelNormal;
+                impulseMagnitude /= (1.0 / this.mass + 1.0 / other.mass);
+                
+                // Apply impulse in direction of normal
+                double impulseX = impulseMagnitude * normal.x;
+                double impulseY = impulseMagnitude * normal.y;
+                
+                this.velocityX += impulseX / this.mass;
+                this.velocityY += impulseY / this.mass;
+                other.velocityX -= impulseX / other.mass;
+                other.velocityY -= impulseY / other.mass;
+            }
+        } else if (!this.isStatic) {
+            // Bounce off static object
+            double velDotNormal = this.velocityX * normal.x + this.velocityY * normal.y;
+            
+            if (velDotNormal < 0) {
+                // Reflect velocity across normal with restitution
+                this.velocityX -= (1.0 + this.restitution) * velDotNormal * normal.x;
+                this.velocityY -= (1.0 + this.restitution) * velDotNormal * normal.y;
+            }
+        } else {
+            // Other bounces off this (static)
+            double velDotNormal = other.velocityX * normal.x + other.velocityY * normal.y;
+            
+            if (velDotNormal > 0) {
+                // Reflect velocity across normal with restitution
+                other.velocityX -= (1.0 + other.restitution) * velDotNormal * normal.x;
+                other.velocityY -= (1.0 + other.restitution) * velDotNormal * normal.y;
+            }
+        }
     }
     
     private void applyVelocityLimiting() {
@@ -115,6 +229,7 @@ public void applyForce(double fx, double fy) {
     public Color getColor() { return color; }
     public int getSize() { return size; }
     public boolean isStatic() { return isStatic; }
+    public double getRestitution() { return restitution; }
     
     public Vector2D getVelocity() {
         return new Vector2D(velocityX, velocityY);
@@ -160,6 +275,10 @@ public void applyForce(double fx, double fy) {
     
     public void setStatic(boolean isStatic) {
         this.isStatic = isStatic;
+    }
+    
+    public void setRestitution(double restitution) {
+        this.restitution = Math.max(0, Math.min(1, restitution));
     }
     
     @Override

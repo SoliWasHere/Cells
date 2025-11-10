@@ -1,4 +1,4 @@
-//CELL.JAVA (GRADIENT-BASED)
+//CELL.JAVA (WITH STOMACH SYSTEM)
 
 package Cells;
 
@@ -6,20 +6,30 @@ import java.awt.Color;
 import java.util.List;
 
 /**
- * Gradient-based Cell: Follows food gradient field.
+ * Cell with stomach system for waste accumulation and food specialization.
  */
 public class Cell extends PhysicsObj {
     private double movementForce;
     private double eatingDistance;
     private double evolveRate;
     private double reproductionThreshold;
+
+    public int lastAte = 0;
     
     private double energy;
     private int age;
     
-    private GradientSource cellGradientSource; // This cell's contribution to cell gradient
+    // Food preference (what this cell wants to eat)
+    private double preferredFoodIdX;
+    private double preferredFoodIdY;
     
-    // Update every N frames for performance
+    // Stomach system for waste
+    private double stomachWasteX; // Accumulated waste X component
+    private double stomachWasteY; // Accumulated waste Y component
+    private double wasteThreshold; // When to expel waste
+    
+    private GradientSource cellGradientSource;
+    
     private int updateSkipCounter = 0;
     private static final int UPDATE_SKIP_FREQUENCY = 2;
     
@@ -37,14 +47,31 @@ public class Cell extends PhysicsObj {
         this.energy = 100.0;
         this.age = 0;
         
-        setColor(Color.MAGENTA);
+        // Random food preference
+        this.preferredFoodIdX = Math.random();
+        this.preferredFoodIdY = Math.random();
+        
+        // Initialize stomach
+        this.stomachWasteX = 0;
+        this.stomachWasteY = 0;
+        this.wasteThreshold = 200.0;
+        
+        updateColorFromPreference();
         setSize((int) (eatingDistance * 20));
         setMass(eatingDistance);
         
         this.updateSkipCounter = (int)(Math.random() * UPDATE_SKIP_FREQUENCY);
         
-        // Create gradient source for cell repulsion
         this.cellGradientSource = new GradientSource(x, y, 50.0, this);
+    }
+
+    /**
+     * Update cell color based on food preference (red spectrum).
+     */
+    private void updateColorFromPreference() {
+        int red = (int)(150 + preferredFoodIdX * 105); // 150-255
+        int magenta = (int)(preferredFoodIdY * 150); // 0-150 for variety
+        setColor(new Color(red, magenta, magenta));
     }
 
     @Override
@@ -63,21 +90,25 @@ public class Cell extends PhysicsObj {
     public void destroy() {
         SimulationWorld world = SimulationWorld.getInstance();
         
-        // Drop food with remaining energy
-        Food food = new Food(this.getX(), this.getY());
-        food.setNutritionalValue(Math.max(0, energy));
-        food.setColor(new Color(
-            (int) (255 - Math.min(255, food.getNutritionalValue() * 2)),
-            255,
-            255
-        ));
-        world.queueAddition(food);
+        // Drop food with remaining energy (but limit to prevent explosion)
+        if (energy > 10) {
+            double foodEnergy = Math.min(energy * 0.5, 200.0);
+            Food food = new Food(this.getX(), this.getY());
+            food.setNutritionalValue(foodEnergy);
+            
+            // Waste has opposite food ID
+            food.setFoodId(
+                MathFunctions.realMod( (1.0 - preferredFoodIdX), 1), 
+                MathFunctions.realMod( (1.0 - preferredFoodIdY), 1)
+            );
+            //world.queueAddition(food);
+        }
         
         super.destroy();
     }
     
     @Override
-    protected void onUpdate() {
+    public void onUpdate() {
         age++;
         energy -= Math.pow(eatingDistance, 1/2.0) / 4.0;
         
@@ -92,6 +123,12 @@ public class Cell extends PhysicsObj {
         if (energy <= 10) {
             destroy();
             return;
+        }
+        
+        // Check if waste threshold reached
+        double wasteAmount = Math.sqrt(stomachWasteX * stomachWasteX + stomachWasteY * stomachWasteY);
+        if (wasteAmount >= wasteThreshold) {
+            //expelWaste();
         }
         
         // Sample gradients periodically
@@ -112,9 +149,77 @@ public class Cell extends PhysicsObj {
         tryEatNearbyFood();
         
         // Reproduction
-        if (energy > reproductionThreshold) {
+        if (energy > Math.max(eatingDistance * 50, reproductionThreshold)) {
             reproduce();
         }
+    }
+
+    /**
+     * Reproduce and mutate.
+     */
+    private void reproduce() {
+        SimulationWorld world = SimulationWorld.getInstance();
+        
+        energy -= eatingDistance * 50;
+        
+        // Create offspring at slightly offset position
+        double offsetAngle = Math.random() * 2 * Math.PI;
+        double offsetDist = (getSize() + 20) / 2.0; // Spawn outside parent's radius
+        
+        Cell offspring = new Cell(
+            getX() + Math.cos(offsetAngle) * offsetDist, 
+            getY() + Math.sin(offsetAngle) * offsetDist
+        );
+        offspring.setEnergy(eatingDistance * 50);
+        
+        // Mutate parameters
+        offspring.setReproductionThreshold(this.reproductionThreshold * (a()+1));
+        offspring.setMovementForce(this.movementForce * ( a() + 1));
+        offspring.setEatingDistance(this.eatingDistance * (a() + 1));
+        offspring.setWasteThreshold(this.wasteThreshold * (a() + 1));
+        
+        // Mutate food preference
+        offspring.setPreferredFoodId(
+            Math.max(0, Math.min(1, this.preferredFoodIdX + MathFunctions.evolve(evolveRate) * 0.1)),
+            Math.max(0, Math.min(1, this.preferredFoodIdY + MathFunctions.evolve(evolveRate) * 0.1))
+        );
+        
+        // Give offspring a small velocity away from parent
+        offspring.setVelocity(
+            getVelocityX() + Math.cos(offsetAngle) * 5,
+            getVelocityY() + Math.sin(offsetAngle) * 5
+        );
+        
+        world.queueAddition(offspring);
+    }
+
+    /**
+     * Expel accumulated waste as food particles.
+     */
+    private void expelWaste() {
+        if (stomachWasteX == 0 && stomachWasteY == 0) return;
+        
+        // Normalize waste to get food ID
+        double wasteMagnitude = Math.sqrt(stomachWasteX * stomachWasteX + stomachWasteY * stomachWasteY);
+        double wasteIdX = Math.abs(stomachWasteX / wasteMagnitude);
+        double wasteIdY = Math.abs(stomachWasteY / wasteMagnitude);
+        
+        // Create waste food particle
+        Food waste = new Food(getX(), getY());
+        waste.setNutritionalValue(wasteMagnitude * 0.5); // Convert waste to nutrition
+        waste.setFoodId(wasteIdX, wasteIdY);
+        
+        // Give waste some velocity away from cell
+        double angle = Math.random() * 2 * Math.PI;
+        waste.setVelocity(Math.cos(angle) * 5, Math.sin(angle) * 5);
+        
+        SimulationWorld.getInstance().queueAddition(waste);
+        
+        // Clear stomach
+        stomachWasteX = 0;
+        stomachWasteY = 0;
+        
+        energy -= 5; // Cost of expelling waste
     }
     
     /**
@@ -123,13 +228,10 @@ public class Cell extends PhysicsObj {
     private Vector2D calculateGradientDirection() {
         SimulationWorld world = SimulationWorld.getInstance();
         
-        // Sample food gradient (attraction)
         GradientSample foodGradient = world.getFoodGradientField().sample(getX(), getY());
-        
-        // Sample cell gradient (repulsion)
         GradientSample cellGradient = world.getCellGradientField().sample(getX(), getY());
         
-        // Combine gradients: move toward food, away from cells
+        // Combine gradients
         double dirX = foodGradient.directionX - cellGradient.directionX * 0.5;
         double dirY = foodGradient.directionY - cellGradient.directionY * 0.5;
         
@@ -137,13 +239,32 @@ public class Cell extends PhysicsObj {
     }
     
     /**
+     * Calculate energy efficiency based on food ID matching.
+     * Returns value from 0 to 1 based on how well food matches preference.
+     */
+    private double calculateFoodEfficiency(Food food) {
+        double deltaX = food.getFoodIdX() - preferredFoodIdX;
+        double deltaY = food.getFoodIdY() - preferredFoodIdY;
+        
+        // Handle wrapping (toroidal food ID space)
+        if (Math.abs(deltaX) > 0.5) deltaX = (deltaX > 0) ? deltaX - 1 : deltaX + 1;
+        if (Math.abs(deltaY) > 0.5) deltaY = (deltaY > 0) ? deltaY - 1 : deltaY + 1;
+        
+        double distance = Math.sqrt( (deltaX * deltaX) + (deltaY * deltaY) );
+        double maxDistance = Math.sqrt(2); // Maximum distance in unit square
+        
+        // Efficiency: 1.0 for perfect match, 0.0 for maximum mismatch
+        return (maxDistance - distance) / maxDistance;
+    }
+    
+    /**
      * Try to eat nearby food using spatial hash.
+     * IMPORTANT: Only eats Food objects, never other Cells!
      */
     private void tryEatNearbyFood() {
         SimulationWorld world = SimulationWorld.getInstance();
         GradientField foodField = world.getFoodGradientField();
         
-        // Check nearby cells in spatial hash
         int gridX = (int)(getX() / foodField.getCellSize());
         int gridY = (int)(getY() / foodField.getCellSize());
         
@@ -155,21 +276,36 @@ public class Cell extends PhysicsObj {
                 int checkX = (gridX + dx + foodField.getGridWidth()) % foodField.getGridWidth();
                 int checkY = (gridY + dy + foodField.getGridHeight()) % foodField.getGridHeight();
                 
-                // Get food sources in this cell (would need to add accessor method)
                 List<PhysicsObj> entities = world.getEntitiesInSpatialCell(checkX, checkY);
                 
                 for (PhysicsObj obj : entities) {
-                    if (obj instanceof Food) {
-                        double dx_world = obj.getX() - getX();
-                        double dy_world = obj.getY() - getY();
-                        double distSq = dx_world * dx_world + dy_world * dy_world;
+                    // CRITICAL: Only eat Food, never other Cells or entities!
+                    if (!(obj instanceof Food)) continue;
+                    
+                    // Use wrapped delta for proper distance calculation
+                    Vector2D delta = world.getWrappedDelta(getX(), getY(), obj.getX(), obj.getY());
+                    double distSq = delta.x * delta.x + delta.y * delta.y;
+                    
+                    if (distSq < eatRadiusSq) {
+                        Food food = (Food) obj;
                         
-                        if (distSq < eatRadiusSq) {
-                            Food food = (Food) obj;
-                            energy += food.getNutritionalValue();
-                            food.destroy();
-                            return; // Only eat one per frame
-                        }
+                        // Calculate efficiency
+                        double efficiency = calculateFoodEfficiency(food);
+                        double energyGained = food.getNutritionalValue() * efficiency;
+                        
+                        energy += energyGained;
+                        
+                        // Accumulate waste (opposite of food ID, scaled by inefficiency)
+                        double wasteAmount = food.getNutritionalValue() * (1.0 - efficiency);
+                        double wasteIdX = 1.0 - food.getFoodIdX();
+                        double wasteIdY = 1.0 - food.getFoodIdY();
+                        
+                        stomachWasteX += wasteIdX * wasteAmount;
+                        stomachWasteY += wasteIdY * wasteAmount;
+                        
+                        food.destroy();
+                        lastAte = SimulationWorld.getInstance().getFrameCount();
+                        return; // Only eat one food per frame
                     }
                 }
             }
@@ -177,36 +313,14 @@ public class Cell extends PhysicsObj {
     }
 
     private double a() {
-        return MathFunctions.evolve(evolveRate) + 1;
-    }
-    
-    /**
-     * Reproduce and mutate.
-     */
-    private void reproduce() {
-        energy -= eatingDistance * 50;
-        
-        Cell offspring = new Cell(getX() + 10, getY() + 10);
-        offspring.setEnergy(eatingDistance * 50);
-        
-        // Mutate parameters
-        
-        offspring.setReproductionThreshold(this.reproductionThreshold * a());
-        offspring.setMovementForce(this.movementForce * a());
-        offspring.setEatingDistance(this.eatingDistance * a());
-        
-        // Mutate color
-        offspring.setColor(new Color(
-            Math.min(255, Math.max(0, (int)(getColor().getRed() * a()))),
-            Math.min(255, Math.max(0, (int)(getColor().getGreen() * a()))),
-            Math.min(255, Math.max(0, (int)(getColor().getBlue() * a())))
-        ));
-        
-        SimulationWorld.getInstance().queueAddition(offspring);
+        return MathFunctions.evolve(evolveRate);
     }
     
     // Setters
     public void setEnergy(double energy) {
+        if (energy < 0) {
+            throw new IllegalArgumentException("WHYYYY: " + energy);
+        }
         this.energy = Math.max(0, energy);
     }
     
@@ -215,11 +329,23 @@ public class Cell extends PhysicsObj {
     }
 
     public void setReproductionThreshold(double amount) {
-        this.reproductionThreshold = Math.max(amount, this.energy);
+        // Ensure reproduction threshold is reasonable and always higher than starting energy
+        this.reproductionThreshold = Math.max(amount, 150.0); // Minimum threshold of 150
+        this.reproductionThreshold = Math.min(this.reproductionThreshold, 5000.0); // Maximum of 5000
     }
     
     public void setMovementForce(double force) {
         this.movementForce = Math.max(1.0, force);
+    }
+    
+    public void setWasteThreshold(double threshold) {
+        this.wasteThreshold = Math.max(50.0, threshold);
+    }
+    
+    public void setPreferredFoodId(double x, double y) {
+        this.preferredFoodIdX = Math.max(0, Math.min(1, x));
+        this.preferredFoodIdY = Math.max(0, Math.min(1, y));
+        updateColorFromPreference();
     }
     
     public void setEatingDistance(double distance) {
@@ -239,7 +365,6 @@ public class Cell extends PhysicsObj {
         super.setSize(newSize);
         setMass(eatingDistance);
         
-        // Update gradient source strength
         cellGradientSource.strength = eatingDistance * 50;
     }
     
@@ -259,10 +384,15 @@ public class Cell extends PhysicsObj {
     public double getEatingDistance() { return eatingDistance; }
     public double getEvolveRate() { return evolveRate; }
     public double getReproductionThreshold() { return reproductionThreshold; }
+    public double getPreferredFoodIdX() { return preferredFoodIdX; }
+    public double getPreferredFoodIdY() { return preferredFoodIdY; }
+    public double getStomachWasteX() { return stomachWasteX; }
+    public double getStomachWasteY() { return stomachWasteY; }
+    public double getWasteThreshold() { return wasteThreshold; }
     
     @Override
     public String toString() {
-        return String.format("Cell[pos=(%.1f, %.1f), energy=%.1f, age=%d]",
-            getX(), getY(), energy, age);
+        return String.format("Cell[pos=(%.1f, %.1f), energy=%.1f, age=%d, pref=(%.2f, %.2f)]",
+            getX(), getY(), energy, age, preferredFoodIdX, preferredFoodIdY);
     }
 }
