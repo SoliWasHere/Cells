@@ -70,7 +70,9 @@ public class Main {
         // Create initial cell
         Cell cell = new Cell(100, 100);
         cell.setSize(20);
-        cell.setColor(Color.MAGENTA);
+        cell.setColor(
+            new Color(125,125,125)
+        );
         cell.setVelocity(10, 10);
         world.addEntity(cell);
         

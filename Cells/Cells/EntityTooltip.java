@@ -117,7 +117,7 @@ public class EntityTooltip {
             cell.getStomachWasteY() * cell.getStomachWasteY()
         );
         
-        if (wasteAmount > 0.1) {
+        if (true) {
             double wasteNorm = Math.sqrt(
                 cell.getStomachWasteX() * cell.getStomachWasteX() + 
                 cell.getStomachWasteY() * cell.getStomachWasteY()
@@ -126,6 +126,7 @@ public class EntityTooltip {
                 Math.abs(cell.getStomachWasteX() / wasteNorm),
                 Math.abs(cell.getStomachWasteY() / wasteNorm)));
         }
+        lines.add(String.format("Stomach fullness: (%.2f, %.2f)", wasteAmount, cell.getWasteThreshold()));
     }
     
     private static void addFoodInfo(java.util.List<String> lines, Food food) {
