@@ -2,6 +2,7 @@
 
 package Cells;
 
+import java.awt.Color;
 import java.util.*;
 
 /**
@@ -23,8 +24,8 @@ public class SimulationWorld {
     private final int totalHeight;
     
     private final List<PhysicsObj> entities;
-    private final List<PhysicsObj> pendingAdditions;
-    private final List<PhysicsObj> pendingRemovals;
+    private final Set<PhysicsObj> pendingAdditions;
+    private final Set<PhysicsObj> pendingRemovals;
     private final Random random;
     
     private double timeStep;
@@ -53,8 +54,8 @@ public class SimulationWorld {
         
         this.entitySpatialHash = new HashMap<>();
         this.entities = new ArrayList<>();
-        this.pendingAdditions = new ArrayList<>();
-        this.pendingRemovals = new ArrayList<>();
+        this.pendingAdditions = new HashSet<>();
+        this.pendingRemovals = new HashSet<>();  // Changed from ArrayList to HashSet
         this.random = new Random();
         
         this.timeStep = 0.1;
@@ -97,20 +98,28 @@ public class SimulationWorld {
         pendingAdditions.clear();
         
         for (PhysicsObj entity : pendingRemovals) {
-            removeFromSpatialHash(entity);
-            entities.remove(entity);
-            entity.onRemovedFromWorld();
+            if (entities.contains(entity)) {  // Only remove if it exists
+                removeFromSpatialHash(entity);
+                entities.remove(entity);
+                entity.onRemovedFromWorld();
+            }
         }
         pendingRemovals.clear();
     }
     
     private void addToSpatialHash(PhysicsObj entity) {
         int hash = getSpatialHash(entity.getX(), entity.getY());
+        entity.setSpatialHashKey(hash);  // Store the hash key
         entitySpatialHash.computeIfAbsent(hash, k -> new ArrayList<>()).add(entity);
     }
     
     private void removeFromSpatialHash(PhysicsObj entity) {
-        int hash = getSpatialHash(entity.getX(), entity.getY());
+        Integer hash = entity.getSpatialHashKey();
+        if (hash == null) {
+            // Entity was never added to spatial hash
+            return;
+        }
+        
         List<PhysicsObj> cell = entitySpatialHash.get(hash);
         if (cell != null) {
             cell.remove(entity);
@@ -118,12 +127,16 @@ public class SimulationWorld {
                 entitySpatialHash.remove(hash);
             }
         } else {
-            throw new IllegalCallerException("NO SHOT");
+            throw new Error("NO SHOTTT AND NO WAYYY");
         }
+        entity.setSpatialHashKey(null);
     }
     
+
     private void updateSpatialHash(PhysicsObj entity, double oldX, double oldY) {
-        int oldHash = getSpatialHash(oldX, oldY);
+        int oldHash = entity.getSpatialHashKey() != null 
+            ? entity.getSpatialHashKey() 
+            : getSpatialHash(oldX, oldY);
         int newHash = getSpatialHash(entity.getX(), entity.getY());
         
         if (oldHash != newHash) {
@@ -136,6 +149,7 @@ public class SimulationWorld {
             }
             
             entitySpatialHash.computeIfAbsent(newHash, k -> new ArrayList<>()).add(entity);
+            entity.setSpatialHashKey(newHash);  // Update the stored hash
         }
     }
     

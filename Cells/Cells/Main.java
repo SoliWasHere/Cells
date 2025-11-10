@@ -114,6 +114,8 @@ public class Main {
             );
             
             food.dampingFactor = 1.0;
+
+            food.setFoodId(1,1);
             
             world.addEntity(food);
         }

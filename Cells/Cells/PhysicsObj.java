@@ -14,14 +14,16 @@ public abstract class PhysicsObj {
     private double velocityY;
     private double accelerationX;
     private double accelerationY;
-    
+
+    private Integer spatialHashKey = null;
+
     private double mass;
     private Color color;
     private int size;
     private boolean isStatic;
     
     // Collision properties
-    private double restitution = 0.5; // Bounciness (0 = no bounce, 1 = perfect bounce)
+    private double restitution = 1; // Bounciness (0 = no bounce, 1 = perfect bounce)
     
     public PhysicsObj(double x, double y) {
         this.x = x;
@@ -280,6 +282,12 @@ public abstract class PhysicsObj {
     public void setRestitution(double restitution) {
         this.restitution = Math.max(0, Math.min(1, restitution));
     }
+
+
+
+public Integer getSpatialHashKey() { return spatialHashKey; }
+public void setSpatialHashKey(Integer key) { this.spatialHashKey = key; }
+
     
     @Override
     public String toString() {

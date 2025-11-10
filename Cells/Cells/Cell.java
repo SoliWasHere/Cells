@@ -128,7 +128,7 @@ public class Cell extends PhysicsObj {
         // Check if waste threshold reached
         double wasteAmount = Math.sqrt(stomachWasteX * stomachWasteX + stomachWasteY * stomachWasteY);
         if (wasteAmount >= wasteThreshold) {
-            //expelWaste();
+            expelWaste();
         }
         
         // Sample gradients periodically
