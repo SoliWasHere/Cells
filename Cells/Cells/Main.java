@@ -83,7 +83,10 @@ public class Main {
         System.out.println("Scene created with " + world.getEntityCount() + " entities");
         System.out.println("Multi-channel gradient system active with " + MultiChannelGradientField.NUM_CHANNELS + " channels");
         System.out.println("Food spawns biased by sin(x) + cos(y + x)");
+        System.out.println("That's all lol");
     }
+    //Let's see
+
     
     /**
      * Create food with environmental bias: more likely where sin(x) + cos(y + x) is higher.
