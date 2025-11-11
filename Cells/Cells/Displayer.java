@@ -79,10 +79,6 @@ public class Displayer {
         panelGraphics.drawImage(buffer, 0, 0, null);
     }
     
-    /**
-     * Draw multi-channel gradient field visualization.
-     * Channels 1-7 = food (mixed colors), Channel 0 = cells (red).
-     */
     private void drawMultiChannelGradientField() {
         SimulationWorld world = SimulationWorld.getInstance();
         MultiChannelGradientField multiField = world.getMultiChannelField();
@@ -95,69 +91,24 @@ public class Displayer {
                 double worldX = screenToWorldX(screenX);
                 double worldY = screenToWorldY(screenY);
                 
-                // Sample all channels
-                GradientSample[] samples = multiField.sampleAll(worldX, worldY);
+                // Sample gradient field
+                GradientSample sample = multiField.sampleAll(worldX, worldY);
                 
-                // Cell repulsion (channel 0) - red
-                float cellIntensity = (float)Math.min(1.0, samples[0].strength / 50.0);
+                float intensity = (float)Math.min(1.0, sample.strength / 100.0);
                 
-                // Food channels (1-7) - various colors mixed
-                float[] foodIntensities = new float[7];
-                float maxFoodIntensity = 0;
-                
-                for (int i = 1; i < samples.length; i++) {
-                    foodIntensities[i-1] = (float)Math.min(1.0, samples[i].strength / 100.0);
-                    maxFoodIntensity = Math.max(maxFoodIntensity, foodIntensities[i-1]);
-                }
-                
-                // Mix colors based on channel strengths
-                // Channels map to different hues
-                float red = cellIntensity * 0.6f;
-                float green = 0;
-                float blue = 0;
-                
-                for (int i = 0; i < 7; i++) {
-                    float hue = i / 7.0f; // Map channels to hue wheel
-                    Color channelColor = Color.getHSBColor(hue * 0.5f + 0.2f, 0.8f, foodIntensities[i]);
-                    
-                    red += channelColor.getRed() / 255.0f * foodIntensities[i] * 0.3f;
-                    green += channelColor.getGreen() / 255.0f * foodIntensities[i] * 0.3f;
-                    blue += channelColor.getBlue() / 255.0f * foodIntensities[i] * 0.3f;
-                }
-                
-                float alpha = Math.max(cellIntensity, maxFoodIntensity) * 0.4f;
-                
-                if (alpha > 0.05f) {
-                    Color gradientColor = new Color(
-                        Math.min(1.0f, red),
-                        Math.min(1.0f, green),
-                        Math.min(1.0f, blue),
-                        alpha
-                    );
+                if (intensity > 0.05f) {
+                    // Visualize as white gradient
+                    Color gradientColor = new Color(intensity, intensity, intensity, intensity * 0.3f);
                     g2.setColor(gradientColor);
                     
                     int size = gradientResolution;
                     g2.fillRect(screenX, screenY, size, size);
                     
-                    // Draw direction arrows for strong gradients
-                    if (zoom > 0.5 && maxFoodIntensity > 0.3f) {
-                        // Find dominant food channel
-                        int dominantChannel = 0;
-                        float maxIntensity = 0;
-                        for (int i = 0; i < 7; i++) {
-                            if (foodIntensities[i] > maxIntensity) {
-                                maxIntensity = foodIntensities[i];
-                                dominantChannel = i + 1;
-                            }
-                        }
-                        
-                        GradientSample dominant = samples[dominantChannel];
-                        float hue = (dominantChannel - 1) / 7.0f;
-                        Color arrowColor = Color.getHSBColor(hue * 0.5f + 0.2f, 0.8f, 0.8f);
-                        
+                    // Draw direction arrow for strong gradients
+                    if (zoom > 0.5 && intensity > 0.3f) {
                         drawGradientArrow(screenX + size/2, screenY + size/2, 
-                                        dominant.directionX, dominant.directionY, 
-                                        maxIntensity, arrowColor);
+                                        sample.directionX, sample.directionY, 
+                                        intensity, Color.WHITE);
                     }
                 }
             }

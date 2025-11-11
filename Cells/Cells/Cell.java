@@ -1,4 +1,4 @@
-//CELL.JAVA (WITH MULTI-CHANNEL RECEPTORS AND WASTE DAMAGE)
+//CELL.JAVA (FIXED COMPATIBILITY THRESHOLDS)
 
 package Cells;
 
@@ -6,10 +6,14 @@ import java.awt.Color;
 import java.util.List;
 
 /**
- * Cell with multi-channel receptor system for specialized gradient sensing.
- * Waste particles drain energy from nearby cells.
+ * Cell with 8D chemical preference system.
+ * Can eat food AND other cells if chemistry matches.
  */
 public class Cell extends PhysicsObj {
+    // RELAXED Compatibility thresholds - cells can eat more food types
+    private static final double EDIBLE_THRESHOLD = ChemicalSignature.MAX_DISTANCE * 0.6; // ~1.7 (was 0.707)
+    private static final double TOXIC_THRESHOLD = ChemicalSignature.MAX_DISTANCE * 0.9; // ~2.5 (was 2.12)
+    
     private double movementForce;
     private double eatingDistance;
     private double evolveRate;
@@ -20,12 +24,14 @@ public class Cell extends PhysicsObj {
     private double energy;
     private int age;
     
-    // Multi-channel receptor system
-    private ReceptorProfile receptorProfile;
+    // 8D chemical preference
+    private ChemicalSignature chemicalPreference;
     
-    // Stomach system for waste
-    private double stomachWasteX;
-    private double stomachWasteY;
+    // Receptor sensitivity (can be tuned)
+    private ReceptorSensitivity receptorSensitivity;
+    
+    // Stomach for waste accumulation
+    private ChemicalSignature stomachWaste;
     private double wasteThreshold;
     
     private GradientSource cellGradientSource;
@@ -38,7 +44,10 @@ public class Cell extends PhysicsObj {
     // Waste damage tracking
     private double wasteDamageAccumulated = 0;
     
-    public Cell(double x, double y) {
+    // Specialization affects mutation rate
+    private double specializationIndex = 0.5;
+    
+    public Cell(double x, double y, ChemicalSignature preference) {
         super(x, y);
         this.dampingFactor = 0.95;
         
@@ -50,12 +59,9 @@ public class Cell extends PhysicsObj {
         this.energy = 100.0;
         this.age = 0;
         
-        // Initialize receptor profile
-        this.receptorProfile = new ReceptorProfile();
-        
-        // Initialize stomach
-        this.stomachWasteX = 0;
-        this.stomachWasteY = 0;
+        this.chemicalPreference = preference;
+        this.receptorSensitivity = new ReceptorSensitivity();
+        this.stomachWaste = ChemicalSignature.zeros();
         this.wasteThreshold = 200.0;
 
         setSize((int) (eatingDistance * 20));
@@ -63,79 +69,55 @@ public class Cell extends PhysicsObj {
         
         this.updateSkipCounter = (int)(Math.random() * UPDATE_SKIP_FREQUENCY);
         
-        this.cellGradientSource = new GradientSource(x, y, 50.0, this);
+        this.cellGradientSource = new GradientSource(x, y, 50.0, this, chemicalPreference);
     }
 
     @Override
     protected void onAddedToWorld() {
         SimulationWorld world = SimulationWorld.getInstance();
-        
-        // Register with cell repulsion channel (channel 0)
-        world.getMultiChannelField().getChannel(0).addSource(cellGradientSource);
+        world.getMultiChannelField().addSource(cellGradientSource);
     }
     
     @Override
     protected void onRemovedFromWorld() {
         SimulationWorld world = SimulationWorld.getInstance();
-        world.getMultiChannelField().getChannel(0).removeSource(cellGradientSource);
+        world.getMultiChannelField().removeSource(cellGradientSource);
     }
 
     @Override
     public void destroy() {
         SimulationWorld world = SimulationWorld.getInstance();
         
-        // Drop food with remaining energy
+        // Drop food with remaining energy (inverse chemistry)
         if (energy > 10) {
             double foodEnergy = Math.min(energy * 0.5, 200.0);
-            Food food = new Food(this.getX(), this.getY());
-            food.setNutritionalValue(foodEnergy);
+            ChemicalSignature deathChem = chemicalPreference.opposite();
             
-            // Death food has inverse receptor profile
-            double[] deathFoodId = calculateInverseFoodId();
-            food.setFoodId(deathFoodId[0], deathFoodId[1]);
-            
+            Food food = new Food(this.getX(), this.getY(), deathChem, foodEnergy);
+            food.setColor(new Color(80, 80, 80)); // Gray death food
             world.queueAddition(food);
         }
         
         super.destroy();
     }
     
-    /**
-     * Calculate food ID that is opposite to this cell's receptor preferences.
-     */
-    private double[] calculateInverseFoodId() {
-        // Find dominant receptor channels
-        double maxSensitivity = 0;
-        int dominantChannel = 0;
-        
-        for (int i = 0; i < receptorProfile.getNumChannels(); i++) {
-            if (receptorProfile.getSensitivity(i) > maxSensitivity) {
-                maxSensitivity = receptorProfile.getSensitivity(i);
-                dominantChannel = i;
-            }
-        }
-        
-        // Create food ID opposite to dominant channel
-        double angle = dominantChannel * Math.PI / 4.0 + Math.PI; // Opposite angle
-        double foodIdX = (Math.cos(angle) + 1.0) / 2.0;
-        double foodIdY = (Math.sin(angle) + 1.0) / 2.0;
-        
-        return new double[]{foodIdX, foodIdY};
-    }
-    
     @Override
     public void onUpdate() {
         age++;
         
-        // Base metabolism cost
-        energy -= Math.pow(eatingDistance, 1/2.0) / 16.0;
+        // REDUCED metabolism costs so cells can survive longer
+        energy -= Math.pow(eatingDistance, 1/2.0) / 32.0; // Was /16.0
         
-        // Receptor maintenance cost
-        energy -= receptorProfile.getEnergyCost();
+        // Specialization cost (reduced)
+        updateSpecialization();
+        energy -= specializationIndex * 0.05; // Was 0.1
+        
+        // Receptor cost (reduced)
+        energy -= receptorSensitivity.getEnergyCost() * 0.5; // Halved
         
         // Waste damage from nearby waste particles
         energy -= wasteDamageAccumulated;
-        wasteDamageAccumulated = 0; // Reset for next frame
+        wasteDamageAccumulated = 0;
         
         // Update gradient source position
         double oldX = cellGradientSource.x;
@@ -143,7 +125,7 @@ public class Cell extends PhysicsObj {
         cellGradientSource.updatePosition(getX(), getY());
         
         SimulationWorld world = SimulationWorld.getInstance();
-        world.getMultiChannelField().getChannel(0).updateSource(cellGradientSource, oldX, oldY);
+        world.getMultiChannelField().updateSource(cellGradientSource, oldX, oldY);
         
         if (energy <= 10) {
             destroy();
@@ -151,8 +133,7 @@ public class Cell extends PhysicsObj {
         }
         
         // Check if waste threshold reached
-        double wasteAmount = Math.sqrt(stomachWasteX * stomachWasteX + stomachWasteY * stomachWasteY);
-        if (wasteAmount >= wasteThreshold) {
+        if (stomachWaste.magnitude() >= wasteThreshold) {
             expelWaste();
         }
         
@@ -167,11 +148,11 @@ public class Cell extends PhysicsObj {
         if (cachedGradientDirection.magnitudeSquared() > 0.000001) {
             Vector2D direction = cachedGradientDirection.normalize();
             applyForce(direction.scale(movementForce));
-            energy -= movementForce * 0.001;
+            energy -= movementForce * 0.0005; // Was 0.001
         }
         
-        // Try to eat nearby food
-        tryEatNearbyFood();
+        // Try to eat nearby entities (food or cells)
+        tryEatNearbyEntities();
         
         // Reproduction
         if (energy > Math.max(eatingDistance * 50, reproductionThreshold)) {
@@ -179,11 +160,25 @@ public class Cell extends PhysicsObj {
         }
     }
 
-    /**
-     * Reproduce and mutate receptor profile.
-     */
+    private void updateSpecialization() {
+        double variance = 0;
+        double mean = 0;
+        
+        for (int i = 0; i < ChemicalSignature.DIMENSIONS; i++) {
+            mean += chemicalPreference.get(i);
+        }
+        mean /= ChemicalSignature.DIMENSIONS;
+        
+        for (int i = 0; i < ChemicalSignature.DIMENSIONS; i++) {
+            double diff = chemicalPreference.get(i) - mean;
+            variance += diff * diff;
+        }
+        variance /= ChemicalSignature.DIMENSIONS;
+        
+        specializationIndex = Math.min(1.0, Math.sqrt(variance) * 4.0);
+    }
+
     private void reproduce() {
-        this.evolveRate = Math.max(Math.random(), this.getAge()/1000);
         SimulationWorld world = SimulationWorld.getInstance();
         
         energy -= eatingDistance * 50;
@@ -191,9 +186,13 @@ public class Cell extends PhysicsObj {
         double offsetAngle = Math.random() * 2 * Math.PI;
         double offsetDist = (getSize() + 20) / 2.0;
         
+        // Mutation rate varies with specialization (specialists mutate less)
+        double adaptiveEvolveRate = evolveRate * (1.0 - specializationIndex * 0.5);
+        
         Cell offspring = new Cell(
             getX() + Math.cos(offsetAngle) * offsetDist, 
-            getY() + Math.sin(offsetAngle) * offsetDist
+            getY() + Math.sin(offsetAngle) * offsetDist,
+            chemicalPreference.mutate(adaptiveEvolveRate)
         );
         offspring.setEnergy(eatingDistance * 50);
         
@@ -203,9 +202,8 @@ public class Cell extends PhysicsObj {
         offspring.setEatingDistance(this.eatingDistance * (a() + 1));
         offspring.setWasteThreshold(this.wasteThreshold * (a() + 1));
         
-        // Copy and mutate receptor profile
-        offspring.receptorProfile = new ReceptorProfile(this.receptorProfile);
-        offspring.receptorProfile.mutate(evolveRate);
+        // Mutate receptor sensitivity
+        offspring.receptorSensitivity = this.receptorSensitivity.mutate(adaptiveEvolveRate);
         
         offspring.setVelocity(
             getVelocityX() + Math.cos(offsetAngle) * 5,
@@ -222,103 +220,75 @@ public class Cell extends PhysicsObj {
         world.queueAddition(offspring);
     }
 
-    /**
-     * Expel accumulated waste as harmful waste particles.
-     */
     private void expelWaste() {
-        double wasteMagnitude = Math.sqrt(stomachWasteX * stomachWasteX + stomachWasteY * stomachWasteY);
+        double wasteMag = stomachWaste.magnitude();
         
-        if (wasteMagnitude < 0.001) return;
+        if (wasteMag < 0.001) return;
         
-        // Normalize waste vector
-        double wasteIdX = (stomachWasteX / wasteMagnitude + 1.0) / 2.0;
-        double wasteIdY = (stomachWasteY / wasteMagnitude + 1.0) / 2.0;
+        // Waste has same chemistry signature
+        ChemicalSignature wasteChemistry = stomachWaste.normalize();
         
-        // Create waste food particle AWAY from cell
+        // Create waste food particle
         double angle = Math.random() * 2 * Math.PI;
         double spawnDistance = (getSize() / 2.0) + 20;
         double spawnX = getX() + Math.cos(angle) * spawnDistance;
         double spawnY = getY() + Math.sin(angle) * spawnDistance;
         
-        Food waste = new Food(spawnX, spawnY);
-        waste.setNutritionalValue(wasteMagnitude * 0.5);
-        waste.setFoodId(wasteIdX, wasteIdY);
-        waste.setIsWaste(true); // Mark as waste
-        waste.setColor(Color.red);
-        
+        Food waste = new Food(spawnX, spawnY, wasteChemistry, wasteMag * 0.5);
+        waste.setIsWaste(true);
+        waste.setColor(new Color(100, 60, 40)); // Brown waste
         waste.setVelocity(Math.cos(angle) * 20, Math.sin(angle) * 20);
         waste.dampingFactor = 0.9;
         
         SimulationWorld.getInstance().queueAddition(waste);
         
-        stomachWasteX = 0;
-        stomachWasteY = 0;
-        
+        stomachWaste = ChemicalSignature.zeros();
         energy -= 5;
     }
     
-/**
- * Calculate movement direction using multi-channel receptor system.
- */
-private Vector2D calculateGradientDirection() {
-    SimulationWorld world = SimulationWorld.getInstance();
-    MultiChannelGradientField multiField = world.getMultiChannelField();
-    
-    // Sample all channels
-    GradientSample[] samples = multiField.sampleAll(getX(), getY());
-    
-    // Cell repulsion (channel 0) - always avoid other cells
-    Vector2D avoidCells = new Vector2D(
-        -samples[0].directionX * samples[0].strength * 0.5,
-        -samples[0].directionY * samples[0].strength * 0.5
-    );
-    
-    // Food attraction (channels 1-7) - extract food samples only
-    GradientSample[] foodSamples = new GradientSample[7];
-    System.arraycopy(samples, 1, foodSamples, 0, 7);
-    
-    Vector2D attractFood = receptorProfile.calculateMovementDirection(foodSamples);
-    
-    return avoidCells.add(attractFood);
-}
-    
-    /**
-     * Calculate food compatibility based on receptor profile.
-     */
-    private double calculateFoodEfficiency(Food food) {
-        MultiChannelGradientField multiField = SimulationWorld.getInstance().getMultiChannelField();
+    private Vector2D calculateGradientDirection() {
+        SimulationWorld world = SimulationWorld.getInstance();
+        MultiChannelGradientField multiField = world.getMultiChannelField();
         
-        // Get food's emission pattern (7 values for food channels 1-7)
-        double[] foodChannels = multiField.foodIdToChannelStrengths(food.getFoodIdX(), food.getFoodIdY());
+        // Apply receptor gains to preference before sampling
+        ChemicalSignature perceivedPreference = receptorSensitivity.applyGains(chemicalPreference);
         
-        // Calculate dot product between receptor profile and food emission
-        double compatibility = 0;
-        double maxPossible = 0;
+        GradientSample sample = multiField.sampleWeighted(getX(), getY(), perceivedPreference);
         
-        for (int i = 0; i < receptorProfile.getNumChannels(); i++) {
-            compatibility += receptorProfile.getSensitivity(i) * foodChannels[i];
-            maxPossible += receptorProfile.getSensitivity(i);
-        }
-        
-        if (maxPossible > 0.001) {
-            return compatibility / maxPossible;
-        }
-        
-        return 0.1; // Minimum efficiency
+        return new Vector2D(sample.directionX, sample.directionY);
     }
     
     /**
-     * Try to eat nearby food (only Food objects, never Cells).
+     * Calculate eating efficiency based on chemical compatibility.
+     * RELAXED VERSION - more lenient thresholds.
      */
-    private void tryEatNearbyFood() {
+    private double calculateEatingEfficiency(ChemicalSignature foodChem) {
+        double distance = chemicalPreference.distanceTo(foodChem);
+        
+        if (distance > TOXIC_THRESHOLD) {
+            // Toxic - lose energy
+            return -0.3; // Less toxic than before
+        } else if (distance > EDIBLE_THRESHOLD) {
+            // Low efficiency but still edible
+            double normalized = (distance - EDIBLE_THRESHOLD) / (TOXIC_THRESHOLD - EDIBLE_THRESHOLD);
+            return 0.1 * (1.0 - normalized); // 0% to 10% efficiency
+        } else {
+            // Good efficiency - linear with distance
+            return 0.2 + 0.8 * (1.0 - (distance / EDIBLE_THRESHOLD)); // 20% to 100% efficiency
+        }
+    }
+    
+    /**
+     * Try to eat nearby entities (food or other cells).
+     */
+    private void tryEatNearbyEntities() {
         SimulationWorld world = SimulationWorld.getInstance();
-        GradientField cellGrid = world.getMultiChannelField().getChannel(0).getGradientField();
+        GradientField cellGrid = world.getMultiChannelField().getGlobalGradientField();
         
         int gridX = (int)(getX() / cellGrid.getCellSize());
         int gridY = (int)(getY() / cellGrid.getCellSize());
         
         double eatRadiusSq = Math.pow(eatingDistance * 30, 2);
-        final double MIN_EFFICIENCY_TO_EAT = 0.1;
         
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
@@ -328,40 +298,65 @@ private Vector2D calculateGradientDirection() {
                 List<PhysicsObj> entities = world.getEntitiesInSpatialCell(checkX, checkY);
                 
                 for (PhysicsObj obj : entities) {
-                    if (!(obj instanceof Food)) continue;
+                    if (obj == this) continue;
                     
                     Vector2D delta = world.getWrappedDelta(getX(), getY(), obj.getX(), obj.getY());
                     double distSq = delta.x * delta.x + delta.y * delta.y;
                     
                     if (distSq < eatRadiusSq) {
-                        Food food = (Food) obj;
-                        
-                        double efficiency = calculateFoodEfficiency(food);
-                        
-                        if (efficiency < MIN_EFFICIENCY_TO_EAT) {
-                            continue;
+                        if (obj instanceof Food) {
+                            tryEatFood((Food) obj);
+                            return;
+                        } else if (obj instanceof Cell) {
+                            tryEatCell((Cell) obj);
+                            return;
                         }
-                        
-                        double energyGained = food.getNutritionalValue() * efficiency;
-                        energy += energyGained;
-                        
-                        // Accumulate waste
-                        double wasteAmount = food.getNutritionalValue() * (1.0 - efficiency);
-                        if (wasteAmount > 0.001) {
-                            double foodDirX = (food.getFoodIdX() * 2.0) - 1.0;
-                            double foodDirY = (food.getFoodIdY() * 2.0) - 1.0;
-                            
-                            stomachWasteX += -foodDirX * wasteAmount;
-                            stomachWasteY += -foodDirY * wasteAmount;
-                        }
-                        
-                        food.destroy();
-                        lastAte = world.getFrameCount();
-                        return;
                     }
                 }
             }
         }
+    }
+    
+    private void tryEatFood(Food food) {
+        double efficiency = calculateEatingEfficiency(food.getChemistry());
+        
+        // Always try to eat - even low efficiency food
+        double energyGained = food.getNutritionalValue() * Math.max(efficiency, -0.3);
+        energy += energyGained;
+        
+        // Accumulate waste (undigested portion) - only if positive efficiency
+        if (efficiency > 0) {
+            double wasteAmount = food.getNutritionalValue() * (1.0 - efficiency);
+            if (wasteAmount > 0.001) {
+                stomachWaste = stomachWaste.add(food.getChemistry().scale(wasteAmount));
+            }
+        }
+        
+        food.destroy();
+        lastAte = SimulationWorld.getInstance().getFrameCount();
+    }
+    
+    private void tryEatCell(Cell other) {
+        // Can only eat cells that are significantly smaller
+        if (other.getSize() >= this.getSize() * 0.7) return;
+        
+        double efficiency = calculateEatingEfficiency(other.chemicalPreference);
+        
+        if (efficiency < 0.1) {
+            // Predation is too inefficient
+            return;
+        }
+        
+        // Predation successful
+        double energyGained = other.energy * efficiency * 0.5; // Only get half
+        energy += energyGained;
+        
+        // Accumulate waste
+        double wasteAmount = other.energy * (1.0 - efficiency * 0.5);
+        stomachWaste = stomachWaste.add(other.chemicalPreference.scale(wasteAmount));
+        
+        other.destroy();
+        lastAte = SimulationWorld.getInstance().getFrameCount();
     }
     
     /**
@@ -375,15 +370,21 @@ private Vector2D calculateGradientDirection() {
         return MathFunctions.evolve(evolveRate);
     }
     
+    // Getters
+    public double getEnergy() { return energy; }
+    public int getAge() { return age; }
+    public ChemicalSignature getChemicalPreference() { return chemicalPreference; }
+    public double getSpecializationIndex() { return specializationIndex; }
+    public ChemicalSignature getStomachWaste() { return stomachWaste; }
+    public double getWasteThreshold() { return wasteThreshold; }
+    public GradientSource getCellGradientSource() { return cellGradientSource; }
+    public ReceptorSensitivity getReceptorSensitivity() { return receptorSensitivity; }
+    
     // Setters
     public void setEnergy(double energy) {
         this.energy = Math.max(0, energy);
     }
     
-    public void setAge(int age) {
-        this.age = Math.max(0, age);
-    }
-
     public void setReproductionThreshold(double amount) {
         this.reproductionThreshold = Math.max(amount, 150.0);
         this.reproductionThreshold = Math.min(this.reproductionThreshold, 5000.0);
@@ -415,32 +416,5 @@ private Vector2D calculateGradientDirection() {
         setMass(eatingDistance);
         
         cellGradientSource.strength = eatingDistance * 50;
-    }
-    
-    @Override
-    public void setSize(int size) {
-        if (size > 200 || size < 2) {
-            destroy();
-            return;
-        }
-        super.setSize(size);
-    }
-    
-    // Getters
-    public double getEnergy() { return energy; }
-    public int getAge() { return age; }
-    public double getMovementForce() { return movementForce; }
-    public double getEatingDistance() { return eatingDistance; }
-    public double getEvolveRate() { return evolveRate; }
-    public double getReproductionThreshold() { return reproductionThreshold; }
-    public double getStomachWasteX() { return stomachWasteX; }
-    public double getStomachWasteY() { return stomachWasteY; }
-    public double getWasteThreshold() { return wasteThreshold; }
-    public ReceptorProfile getReceptorProfile() { return receptorProfile; }
-    
-    @Override
-    public String toString() {
-        return String.format("Cell[pos=(%.1f, %.1f), energy=%.1f, age=%d, spec=%.2f]",
-            getX(), getY(), energy, age, receptorProfile.getSpecializationIndex());
     }
 }

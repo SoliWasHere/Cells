@@ -153,8 +153,14 @@ public class InputManager {
             for (int i = 0; i < 10; i++) {
                 double x = world.getRandom().nextDouble() * world.getTotalWidth();
                 double y = world.getRandom().nextDouble() * world.getTotalHeight();
+
+                double[] sig = new double[]{1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0};
                 
-                Food food = new Food(x, y);
+                Food food = new Food(x, y,
+                new ChemicalSignature(
+                    sig
+                ),
+                50);
                 food.setMass(1);
                 food.setSize(3);
                 food.setColor(new Color(
