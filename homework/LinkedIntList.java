@@ -6,7 +6,8 @@ package homework;
  * sorting, merging, and various utility methods.
  * 
  * @author Timothy Lopez
- * @version 1.0
+ * @version 2.0
+ * // I added the addition of last and size tracking to various methods.
  */
 
 // Imports
@@ -21,8 +22,9 @@ import java.util.function.IntBinaryOperator;
 
 public class LinkedIntList implements Iterable<Integer> {
 
-    /** The first node in the linked list */
+    private ListNode last;
     private ListNode front;
+    private int size;
     
     /** Indicates whether the list contains a cycle */
     public boolean isLooping;
@@ -60,6 +62,8 @@ public class LinkedIntList implements Iterable<Integer> {
             current.next = new ListNode(list.get(i));
             current = current.next;
         }
+        last = current;
+        size = list.size();
     }
 
     /**
@@ -80,6 +84,8 @@ public class LinkedIntList implements Iterable<Integer> {
             current.next = new ListNode(list[i]);
             current = current.next;        
         }
+        last = current;
+        size = list.length;
     }
 
     /**
@@ -120,14 +126,16 @@ public class LinkedIntList implements Iterable<Integer> {
         }
 
         LinkedIntList result = new LinkedIntList(new ListNode(f.applyAsInt(front.data)));
+        result.size = 1;
         ListNode current = front.next;
         ListNode resultCurrent = result.front;
         while (current != null) {
             resultCurrent.next = new ListNode(f.applyAsInt(current.data));
             resultCurrent = resultCurrent.next;
             current = current.next;
+            result.size++;
         }
-        
+        result.last = resultCurrent;
         return result;
     }
 
@@ -155,10 +163,11 @@ public class LinkedIntList implements Iterable<Integer> {
                     resultCurrent.next = new ListNode(current.data);
                     resultCurrent = resultCurrent.next;
                 }
+                result.size++;
             }
             current = current.next;
         }
-
+        result.last = resultCurrent;
         return result;
     }
 
@@ -201,7 +210,7 @@ public class LinkedIntList implements Iterable<Integer> {
      * @return the size of the list
      * @throws IllegalStateException if the list is looping
      */
-    public int size() {
+    public int checkSize() {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
@@ -212,6 +221,10 @@ public class LinkedIntList implements Iterable<Integer> {
             current = current.next;
         }
         return count;
+    }
+
+    public int size() {
+        return size;
     }
 
     /**
@@ -249,13 +262,11 @@ public class LinkedIntList implements Iterable<Integer> {
             return true;
         }
         ListNode current = front;
-        int currentInt = front.data;
         while (current.next != null) {
-            current = current.next;
-            if (currentInt > current.data) {
+            if (current.data > current.next.data) {
                 return false;
             }
-            currentInt = current.data;
+            current = current.next;
         }
         return true;
     }
@@ -418,20 +429,9 @@ public class LinkedIntList implements Iterable<Integer> {
      * Returns the last node in this list.
      * 
      * @return the last node
-     * @throws IllegalStateException if the list is empty or looping
      */
     public ListNode getLast() {
-        if (isLooping) {
-            throw new IllegalStateException("Linked Int List cannot be looping.");
-        }
-        if (front == null) {
-            throw new IllegalStateException("Linked Int List can't be empty.");
-        }
-        ListNode current = front;
-        while (current.next != null) {
-            current = current.next;
-        }
-        return current;
+        return last;
     }
 
     /**
@@ -477,7 +477,7 @@ public class LinkedIntList implements Iterable<Integer> {
         if (isEmpty()) {
             throw new IllegalStateException("Linked Int List cannot be empty.");
         }
-        if (size() % 2 == 1) { 
+        if (size % 2 == 1) { 
             throw new IllegalStateException("It has to be an even numbered list."); 
         }
         ListNode slow = front;
@@ -514,21 +514,18 @@ public class LinkedIntList implements Iterable<Integer> {
         if (index1 < 0) {
             throw new IllegalArgumentException("index1 has to be greater than or equal to 0");
         }
-        int size = size();
         if (index1 >= size || index2 >= size) {
             throw new IllegalArgumentException("index1 and index2 have to be less than the size of the list");
         }
-        ListNode start = getNode(index1);
-        LinkedIntList subList = new LinkedIntList(new ListNode(start.data));
-        int currentIndex = index1;
-        ListNode current = start.next;
-        ListNode currentOther = subList.front;
-        while (currentIndex < index2) {
-            currentOther.next = new ListNode(current.data);
+        
+        LinkedIntList subList = new LinkedIntList();
+        ListNode current = getNode(index1);
+        
+        for (int i = index1; i <= index2; i++) {
+            subList.addLast(current.data);
             current = current.next;
-            currentIndex++;
-            currentOther = currentOther.next;
         }
+        
         return subList;
     }
 
@@ -541,30 +538,26 @@ public class LinkedIntList implements Iterable<Integer> {
         if (front == null || front.next == null) {
             return;
         }
-        if (x==0) {
+        
+        x = x % size;
+        if (x < 0) {
+            x += size;
+        }
+        if (x == 0) {
             return;
         }
-        int size = 1;
-        ListNode current = front;
-        while (current.next != null) {
-            current = current.next;
-            size++;
-        }
-        current.next = front;
-        int times = x%size;
-        if (x < 0) {
-        times += size;
-        }
-        size = size - times;
+
+        int stepsToNewTail = size - x - 1;
 
         int index = 0;
-        current = front;
-        while (index != times-1) {
+        ListNode current = front;
+        while (index != stepsToNewTail) {
             index++;
             current = current.next;
         }
         front = current.next;
         current.next = null;
+        last = current;
     }
 
     /**
@@ -592,6 +585,8 @@ public class LinkedIntList implements Iterable<Integer> {
             }
             current = current.next;
         }
+        size -= removedCount;
+        last = prev;
         return removedCount;
     }
 
@@ -615,7 +610,7 @@ public class LinkedIntList implements Iterable<Integer> {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
-        if (index < 0 || index >= size()) {
+        if (index < 0 || index >= size) {
             throw new IllegalArgumentException("Index out of bounds.");
         }
         LinkedIntList list1 = new LinkedIntList();
@@ -641,7 +636,7 @@ public class LinkedIntList implements Iterable<Integer> {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
-        switch (size()) {
+        switch (size) {
             case 0:
                 return;
             case 1:
@@ -667,6 +662,9 @@ public class LinkedIntList implements Iterable<Integer> {
                 temp2.next = temp1;
                 front = temp2;
         }
+        ListNode temp = front;
+        front = last;
+        last = temp;
     }
 
     /**
@@ -681,12 +679,10 @@ public class LinkedIntList implements Iterable<Integer> {
         }
         if (front == null) return new LinkedIntList();
 
-        LinkedIntList list = new LinkedIntList(new ListNode(front.data));
-        ListNode currentOther = front.next;
-        ListNode current = list.front;
-        while (currentOther!=null) {
-            current.next = new ListNode(currentOther.data);
-            currentOther = currentOther.next;
+        LinkedIntList list = new LinkedIntList();
+        ListNode current = front;
+        while (current != null) {
+            list.addLast(current.data);
             current = current.next;
         }
         return list;
@@ -707,10 +703,16 @@ public class LinkedIntList implements Iterable<Integer> {
         }
         if (isEmpty()) {
             front = new ListNode(value);
+            last = front;
+            size++;
             return;
         }
         if (value < front.data) {
             front = new ListNode(value, front);
+            if (size == 0) {
+                last = front;
+            }
+            size++;
             return;
         }
         boolean inserted = false;
@@ -725,7 +727,9 @@ public class LinkedIntList implements Iterable<Integer> {
         }
         if (!inserted) {
             current.next = new ListNode(value);
+            last = current.next;
         }
+        size++;
     }
 
     /**
@@ -748,22 +752,25 @@ public class LinkedIntList implements Iterable<Integer> {
         }
 
         if (front != null) {
-            ListNode last = getLast();
             ListNode current = other.front;
             while (current != null) {
                 last.next = new ListNode(current.data);
                 last = last.next;
                 current = current.next;
+                size++;
             }
         } else {
             front = new ListNode(other.front.data);
+            size = 1;
             ListNode current = this.front;
             ListNode currentOther = other.front.next;
             while (currentOther != null) {
                 current.next = new ListNode(currentOther.data);
                 current = current.next;
                 currentOther = currentOther.next;
+                size++;
             }
+            last = current;
         }
     }
 
@@ -779,13 +786,12 @@ public class LinkedIntList implements Iterable<Integer> {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
-        int end = size();
         if (
             (
-                (index1 < 0) || (index1 >= end)
+                (index1 < 0) || (index1 >= size)
             ) || (
-                (index2 < 0) || (index2 >= end)
-            ) 
+                (index2 < 0) || (index2 >= size)
+            )
         ) {
             throw new IllegalArgumentException("Node indexes have to be within range of list.");
         }
@@ -875,6 +881,12 @@ public class LinkedIntList implements Iterable<Integer> {
             node1.next = node2.next;
             node2.next = temp;
         }
+
+        if (node1.next == null) {
+            last = node1;
+        } else if (node2.next == null) {
+            last = node2;
+        }
     }
 
     /**
@@ -893,9 +905,13 @@ public class LinkedIntList implements Iterable<Integer> {
         }
         if (isEmpty()) {
             front = other.front;
+            last = other.last;
+            size = other.size;
             return;
         }
         getLast().next = other.front;
+        size += other.size;
+        last = other.last;
     }
 
     /**
@@ -921,6 +937,8 @@ public class LinkedIntList implements Iterable<Integer> {
         }
         if (front == null) {
             front = other.front;
+            last = other.last;
+            size = other.size;
             return;
         }
 
@@ -953,6 +971,12 @@ public class LinkedIntList implements Iterable<Integer> {
             hold.next = current1;
         }
         front = start;
+        size += other.size;
+
+        while (hold.next != null) {
+            hold = hold.next;
+        }
+        last = hold;
     }
 
     /**
@@ -1067,15 +1091,15 @@ public class LinkedIntList implements Iterable<Integer> {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
-        ListNode current = front;
         if (isEmpty()) {
             front = new ListNode(value);
+            last = front;
             return;
+        } else {
+            last.next = new ListNode(value);
+            last = last.next;
         }
-        while (current.next != null) {
-            current = current.next;
-        }
-        current.next = new ListNode(value);
+        size++;
     }
 
     /**
@@ -1084,7 +1108,13 @@ public class LinkedIntList implements Iterable<Integer> {
      * @param value the value to add
      */
     public void addFront(int value) {
-        front = new ListNode(value, front);
+       if (isEmpty()) {
+           front = new ListNode(value);
+           last = front;
+       } else {
+           front = new ListNode(value, front);
+       }
+       size++;
     }
 
     /**
@@ -1097,7 +1127,7 @@ public class LinkedIntList implements Iterable<Integer> {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
-        if (size() < 2) {
+        if (size < 2) {
             throw new IllegalStateException("List has to be at least 2 nodes long.");
         }
         
@@ -1106,6 +1136,7 @@ public class LinkedIntList implements Iterable<Integer> {
             current = current.next;
         }
         current.next = new ListNode(value,current.next);
+        size++;
     }
 
     /**
@@ -1120,7 +1151,7 @@ public class LinkedIntList implements Iterable<Integer> {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
-        if (index > size() || index < 0) {
+        if (index > size || index < 0) {
             throw new IllegalArgumentException("Index has to be in range of the Linked Int List");
         }
         if (index == 0) {
@@ -1134,6 +1165,10 @@ public class LinkedIntList implements Iterable<Integer> {
             currentIndex++;
         }
         current.next = new ListNode(value, current.next);
+        size++;
+        if (current.next.next == null) {
+            last = current.next;
+        }
     }
     
     /**
@@ -1148,6 +1183,10 @@ public class LinkedIntList implements Iterable<Integer> {
         }
         int data = front.data;
         front = front.next;
+        size--;
+        if (isEmpty()) {
+            last = null;
+        }
         return data;
     }
 
@@ -1174,6 +1213,8 @@ public class LinkedIntList implements Iterable<Integer> {
         }
         int data = current.next.data;
         current.next = null;
+        size--;
+        last = current;
         return data;
     }
 
@@ -1199,7 +1240,7 @@ public class LinkedIntList implements Iterable<Integer> {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
-        if (index >= size() || index < 0) {
+        if (index >= size || index < 0) {
             throw new IllegalArgumentException("Index has to be in range of the Linked Int List");
         }
         if (index == 0) {
@@ -1213,6 +1254,10 @@ public class LinkedIntList implements Iterable<Integer> {
         }
         int data = current.next.data;
         current.next = current.next.next;
+        if (current.next == null) {
+            last = current;
+        }
+        size--;
         return data;
     }
 
@@ -1226,10 +1271,10 @@ public class LinkedIntList implements Iterable<Integer> {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
-        if (size()-2 < 0) {
+        if (size < 2) {
             throw new IllegalStateException("List has to be at least 2 nodes long.");
         }
-        return remove(size()-2);
+        return remove(size - 2);
     }
 
     /**
@@ -1263,11 +1308,12 @@ public class LinkedIntList implements Iterable<Integer> {
             if (current.next.data == value) {
                 current.next = current.next.next;
                 count++;
+                size--;
             } else {
                 current = current.next;
             }
         }
-
+        last = current;
         return count;
     }
 
@@ -1299,6 +1345,8 @@ public class LinkedIntList implements Iterable<Integer> {
                 current = current.next;
             }
         }
+        last = current;
+        size--;
     }
 
     /**
@@ -1313,7 +1361,7 @@ public class LinkedIntList implements Iterable<Integer> {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
-        if (start < 0 || end < start || end >= size()) {
+        if (start < 0 || end < start || end >= size) {
             throw new IllegalArgumentException("Invalid start or end index.");
         }
 
@@ -1322,6 +1370,11 @@ public class LinkedIntList implements Iterable<Integer> {
             for (int i = 0; i <= end; i++) {
                 current = current.next;
             }
+            front = current;
+            if (front == null) {
+                last = null;
+            }
+            size -= (end - start + 1);
             front = current;
             return;
         }
@@ -1336,6 +1389,8 @@ public class LinkedIntList implements Iterable<Integer> {
             temp = temp.next;
         }
         current.next = temp;
+        last = current;
+        size -= (end - start + 1);
     }
 
     /**
@@ -1343,6 +1398,9 @@ public class LinkedIntList implements Iterable<Integer> {
      */
     public void clear() {
         front = null;
+        last = null;
+        size = 0;
+        isLooping = false;
     }
 
     /**
@@ -1355,7 +1413,7 @@ public class LinkedIntList implements Iterable<Integer> {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
-        int[] array = new int[size()];
+        int[] array = new int[size];
         int index = 0;
         ListNode current = front;
         while(current != null) {
@@ -1487,6 +1545,8 @@ public class LinkedIntList implements Iterable<Integer> {
             current.next = new ListNode(current.data, current.next);
             current = current.next.next;
         }
+        size *= 2;
+        last = current;
     }
 
     /**
@@ -1498,7 +1558,10 @@ public class LinkedIntList implements Iterable<Integer> {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
-        this.front = sort(size(), front).front;
+        LinkedIntList sorted = sort(size, front);
+        this.front = sorted.front;
+        this.last = sorted.last;
+        this.size = sorted.size;
     }
 
     /**
@@ -1584,12 +1647,14 @@ public class LinkedIntList implements Iterable<Integer> {
                 } else {
                     prev.next = current.next;
                 }
+                size--;
                 changed = true;
             } else {
                 prev = current;
             }
             current = current.next;
         }
+        last = prev;
         return changed;
     }
 
@@ -1620,16 +1685,19 @@ public class LinkedIntList implements Iterable<Integer> {
 
         while (front != null && !otherValues.contains(front.data)) {
             front = front.next;
+            size--;
         }
 
         ListNode current = front;
         while (current.next != null) {
             if (!otherValues.contains(current.next.data)) {
+                size--;
                 current.next = current.next.next;
             } else {
                 current = current.next;
             }
         }
+        last = current;
     }
 
     /**
@@ -1659,16 +1727,19 @@ public class LinkedIntList implements Iterable<Integer> {
 
         while (front != null && otherValues.contains(front.data)) {
             front = front.next;
+            size--;
         }
 
         ListNode current = front;
         while (current.next != null) {
             if (otherValues.contains(current.next.data)) {
                 current.next = current.next.next;
+                size--;
             } else {
                 current = current.next;
             }
         }
+        last = current;
     }
 
     /**
@@ -1706,10 +1777,12 @@ public class LinkedIntList implements Iterable<Integer> {
             if (otherValues.contains(current.data)) {
                 tail.next = new ListNode(current.data);
                 tail = tail.next;
+                result.size++;
             }
             current = current.next;
         }
         result.front = hold.next;
+        result.last = tail;
         return result;
     }
 
@@ -1735,9 +1808,10 @@ public class LinkedIntList implements Iterable<Integer> {
                 list1.addLast(current.data);
             }
             current = current.next;
-        }
+        };
         list1.merge(list2);
         front = list1.front;
+        last = list1.last;
     }
 
     /**
