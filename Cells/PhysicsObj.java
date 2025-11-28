@@ -1,10 +1,8 @@
-//PHYSICSOBJ.JAVA (OPTIMIZED - Add this method)
+//PHYSICSOBJ.JAVA (WITH COLLISION)
 
 package Cells;
 
 import java.awt.Color;
-import java.util.ArrayList;
-import java.util.List;
 
 public abstract class PhysicsObj {
     protected double maxVelocity = 10000.0;
@@ -16,13 +14,16 @@ public abstract class PhysicsObj {
     private double velocityY;
     private double accelerationX;
     private double accelerationY;
-    
+
+    private Integer spatialHashKey = null;
+
     private double mass;
     private Color color;
     private int size;
     private boolean isStatic;
     
-    protected MatrixCell currentMatrixCell;  // CHANGED: protected for direct access
+    // Collision properties
+    private double restitution = 1; // Bounciness (0 = no bounce, 1 = perfect bounce)
     
     public PhysicsObj(double x, double y) {
         this.x = x;
@@ -68,7 +69,7 @@ public abstract class PhysicsObj {
     }
     
     protected void onUpdate() {}
-    
+
     public void applyForce(double fx, double fy) {
         accelerationX += fx / mass;
         accelerationY += fy / mass;
@@ -78,18 +79,115 @@ public abstract class PhysicsObj {
         applyForce(force.x, force.y);
     }
     
-    public void applyGravityFrom(PhysicsObj other) {
+    /**
+     * Handle collision with another physics object.
+     * Ensures proper separation and applies elastic collision physics.
+     */
+    public void handleCollision(PhysicsObj other) {
+        if (this.isStatic && other.isStatic) return;
+        
         SimulationWorld world = SimulationWorld.getInstance();
         
-        Vector2D delta = world.getWrappedDelta(x, y, other.x, other.y);
+        // Get wrapped delta (from this to other)
+        Vector2D delta = world.getWrappedDelta(this.x, this.y, other.x, other.y);
         double distance = delta.magnitude();
         
-        if (distance < 10) distance = 10;
+        // Check if actually colliding
+        double minDistance = (this.size + other.size) / 2.0;
+        if (distance >= minDistance) return;
         
-        double forceMagnitude = (world.getGravityConstant() * mass * other.mass) / (distance * distance);
+        // Prevent division by zero
+        if (distance < 0.1) {
+            // Objects are on top of each other - separate randomly
+            double angle = Math.random() * 2 * Math.PI;
+            delta = new Vector2D(Math.cos(angle), Math.sin(angle));
+            distance = 0.1;
+        }
         
-        Vector2D direction = delta.normalize();
-        applyForce(direction.scale(forceMagnitude));
+        // Calculate overlap amount
+        double overlap = minDistance - distance;
+        
+        // Normalize the delta to get collision normal (points from this to other)
+        Vector2D normal = delta.normalize();
+        
+        // Separate objects based on mass ratio
+        if (!this.isStatic && !other.isStatic) {
+            // Both moveable - split separation inversely proportional to mass
+            double totalMass = this.mass + other.mass;
+            double pushThis = overlap * (other.mass / totalMass) * 1.01; // 1.01 adds tiny extra separation
+            double pushOther = overlap * (this.mass / totalMass) * 1.01;
+            
+            // Push this away from other
+            this.x -= normal.x * pushThis;
+            this.y -= normal.y * pushThis;
+            
+            // Push other away from this
+            other.x += normal.x * pushOther;
+            other.y += normal.y * pushOther;
+            
+            // Wrap coordinates
+            this.x = world.wrapX(this.x);
+            this.y = world.wrapY(this.y);
+            other.x = world.wrapX(other.x);
+            other.y = world.wrapY(other.y);
+        } else if (!this.isStatic) {
+            // Only this is moveable - push it away completely
+            this.x -= normal.x * overlap * 1.01;
+            this.y -= normal.y * overlap * 1.01;
+            this.x = world.wrapX(this.x);
+            this.y = world.wrapY(this.y);
+        } else {
+            // Only other is moveable - push it away completely
+            other.x += normal.x * overlap * 1.01;
+            other.y += normal.y * overlap * 1.01;
+            other.x = world.wrapX(other.x);
+            other.y = world.wrapY(other.y);
+        }
+        
+        // Apply velocity changes (impulse resolution)
+        if (!this.isStatic && !other.isStatic) {
+            // Relative velocity (velocity of this relative to other)
+            double relVelX = this.velocityX - other.velocityX;
+            double relVelY = this.velocityY - other.velocityY;
+            
+            // Relative velocity along collision normal
+            double relVelNormal = relVelX * normal.x + relVelY * normal.y;
+            
+            // Only resolve if objects are approaching
+            if (relVelNormal < 0) {
+                // Calculate impulse scalar
+                double restitutionAvg = (this.restitution + other.restitution) / 2.0;
+                double impulseMagnitude = -(1.0 + restitutionAvg) * relVelNormal;
+                impulseMagnitude /= (1.0 / this.mass + 1.0 / other.mass);
+                
+                // Apply impulse in direction of normal
+                double impulseX = impulseMagnitude * normal.x;
+                double impulseY = impulseMagnitude * normal.y;
+                
+                this.velocityX += impulseX / this.mass;
+                this.velocityY += impulseY / this.mass;
+                other.velocityX -= impulseX / other.mass;
+                other.velocityY -= impulseY / other.mass;
+            }
+        } else if (!this.isStatic) {
+            // Bounce off static object
+            double velDotNormal = this.velocityX * normal.x + this.velocityY * normal.y;
+            
+            if (velDotNormal < 0) {
+                // Reflect velocity across normal with restitution
+                this.velocityX -= (1.0 + this.restitution) * velDotNormal * normal.x;
+                this.velocityY -= (1.0 + this.restitution) * velDotNormal * normal.y;
+            }
+        } else {
+            // Other bounces off this (static)
+            double velDotNormal = other.velocityX * normal.x + other.velocityY * normal.y;
+            
+            if (velDotNormal > 0) {
+                // Reflect velocity across normal with restitution
+                other.velocityX -= (1.0 + other.restitution) * velDotNormal * normal.x;
+                other.velocityY -= (1.0 + other.restitution) * velDotNormal * normal.y;
+            }
+        }
     }
     
     private void applyVelocityLimiting() {
@@ -102,73 +200,6 @@ public abstract class PhysicsObj {
             velocityX *= scale;
             velocityY *= scale;
         }
-    }
-    
-    public List<PhysicsObj> getCellsInRadius(double radius) {
-        List<PhysicsObj> nearby = new ArrayList<>();
-        
-        if (currentMatrixCell == null) {
-            return nearby;
-        }
-        
-        SimulationWorld world = SimulationWorld.getInstance();
-        Matrix matrix = world.getMatrix();
-        
-        int cellSize = matrix.getCellSize();
-        int cellRadius = (int) Math.ceil(radius / cellSize);
-        
-        int currentGridX = currentMatrixCell.getGridX();
-        int currentGridY = currentMatrixCell.getGridY();
-        
-        for (int dx = -cellRadius; dx <= cellRadius; dx++) {
-            for (int dy = -cellRadius; dy <= cellRadius; dy++) {
-                MatrixCell cell = matrix.getMatrixCell(currentGridX + dx, currentGridY + dy);
-                
-                if (cell != null) {
-                    for (PhysicsObj other : cell.getCells()) {
-                        if (other != this) {
-                            double distance = getDistanceTo(other);
-                            if (distance <= radius) {
-                                nearby.add(other);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        return nearby;
-    }
-    
-    public List<PhysicsObj> getCellsInSameGrid() {
-        List<PhysicsObj> sameCells = new ArrayList<>();
-        
-        if (currentMatrixCell != null) {
-            for (PhysicsObj other : currentMatrixCell.getCells()) {
-                if (other != this) {
-                    sameCells.add(other);
-                }
-            }
-        }
-        
-        return sameCells;
-    }
-    
-    public double getDistanceTo(PhysicsObj other) {
-        SimulationWorld world = SimulationWorld.getInstance();
-        return world.getWrappedDistance(x, y, other.x, other.y);
-    }
-    
-    public Vector2D getDirectionTo(PhysicsObj other) {
-        SimulationWorld world = SimulationWorld.getInstance();
-        Vector2D delta = world.getWrappedDelta(x, y, other.x, other.y);
-        return delta.normalize();
-    }
-    
-    public boolean isCollidingWith(PhysicsObj other) {
-        double distance = getDistanceTo(other);
-        double collisionDistance = (size + other.size) / 2.0;
-        return distance < collisionDistance;
     }
     
     public void destroy() {
@@ -186,7 +217,7 @@ public abstract class PhysicsObj {
     public Color getColor() { return color; }
     public int getSize() { return size; }
     public boolean isStatic() { return isStatic; }
-    public MatrixCell getCurrentMatrixCell() { return currentMatrixCell; }
+    public double getRestitution() { return restitution; }
     
     public Vector2D getVelocity() {
         return new Vector2D(velocityX, velocityY);
@@ -234,9 +265,15 @@ public abstract class PhysicsObj {
         this.isStatic = isStatic;
     }
     
-    public void setCurrentMatrixCell(MatrixCell matrixCell) {
-        this.currentMatrixCell = matrixCell;
+    public void setRestitution(double restitution) {
+        this.restitution = Math.max(0, Math.min(1, restitution));
     }
+
+
+
+public Integer getSpatialHashKey() { return spatialHashKey; }
+public void setSpatialHashKey(Integer key) { this.spatialHashKey = key; }
+
     
     @Override
     public String toString() {

@@ -1,4 +1,4 @@
-//INPUTMANAGER.JAVA
+//INPUTMANAGER.JAVA (UPDATED)
 
 package Cells;
 
@@ -10,7 +10,7 @@ import java.awt.event.KeyEvent;
  */
 public class InputManager {
     private static final String[] PARAMETER_NAMES = {
-        "", "Gravity", "TimeStep", "Camera", "Entities", "Clear"
+        "", "Gone sorryy", "TimeStep", "Camera", "Entities", "Clear"
     };
     
     private boolean[] keys = new boolean[256];
@@ -33,6 +33,11 @@ public class InputManager {
         // Pause toggle
         if (keyCode == KeyEvent.VK_SPACE) {
             togglePause();
+        }
+        
+        // Toggle gradient visualization
+        if (keyCode == KeyEvent.VK_G) {
+            toggleGradientVisualization();
         }
     }
     
@@ -73,7 +78,7 @@ public class InputManager {
             }
             
             // Clamp zoom
-            displayer.zoom = Math.max(0.1, Math.min(5.0, displayer.zoom));
+            displayer.zoom = Math.max(0.01, Math.min(100.0, displayer.zoom));
         }
     }
     
@@ -87,6 +92,16 @@ public class InputManager {
     }
     
     /**
+     * Toggle gradient field visualization.
+     */
+    private void toggleGradientVisualization() {
+        SimulationWorld world = SimulationWorld.getInstance();
+        Displayer displayer = world.getDisplayer();
+        displayer.toggleGradientField();
+        System.out.println("Gradient visualization: " + (displayer.isShowingGradientField() ? "ON" : "OFF"));
+    }
+    
+    /**
      * Adjust the selected parameter.
      */
     private void adjustParameter(boolean increase) {
@@ -94,9 +109,8 @@ public class InputManager {
         double factor = increase ? 1.1 : 0.9;
         
         switch (selectedParameter) {
-            case 1: // Gravity
-                adjustGravity(factor);
-                break;
+            case 1: 
+                System.out.println("GONE");
                 
             case 2: // Time step
                 adjustTimeStep(factor);
@@ -119,16 +133,6 @@ public class InputManager {
     }
     
     /**
-     * Adjust gravity constant.
-     */
-    private void adjustGravity(double factor) {
-        SimulationWorld world = SimulationWorld.getInstance();
-        double newGravity = world.getGravityConstant() * factor;
-        world.setGravityConstant(newGravity);
-        System.out.printf("Gravity: %.2f\n", newGravity);
-    }
-    
-    /**
      * Adjust time step.
      */
     private void adjustTimeStep(double factor) {
@@ -147,10 +151,16 @@ public class InputManager {
         if (increase) {
             // Add 10 food particles
             for (int i = 0; i < 10; i++) {
-                double x = world.getRandom().nextDouble() * world.getMatrix().getTotalWidth();
-                double y = world.getRandom().nextDouble() * world.getMatrix().getTotalHeight();
+                double x = world.getRandom().nextDouble() * world.getTotalWidth();
+                double y = world.getRandom().nextDouble() * world.getTotalHeight();
+
+                double[] sig = new double[]{1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0};
                 
-                Food food = new Food(x, y);
+                Food food = new Food(x, y,
+                new ChemicalSignature(
+                    sig
+                ),
+                50);
                 food.setMass(1);
                 food.setSize(3);
                 food.setColor(new Color(
