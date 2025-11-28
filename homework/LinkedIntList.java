@@ -1,20 +1,15 @@
 package homework;
 
-// Name: Timothy Lopez
-// Period: 6
-// Version: 1.0
-
-/* 
- * Name: LinkedIntList 
- * Parameters: front node of a list (listNode) 
- * Use: It is a manager for a LinkedList full of only ints. It allows you to  
- *      add or delete nodes wherever you want, get the range, check if it is 
- *      sorted or empty, get number of nodes in list, and print it in a 
- *      clean format. 
+/**
+ * A singly linked list implementation that stores integers.
+ * Provides comprehensive list manipulation operations including adding, removing,
+ * sorting, merging, and various utility methods.
+ * 
+ * @author Timothy Lopez
+ * @version 1.0
  */
 
-
-//Imports
+// Imports
 import java.util.NoSuchElementException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,32 +21,32 @@ import java.util.function.IntBinaryOperator;
 
 public class LinkedIntList implements Iterable<Integer> {
 
-    //Set isLooping to true manually when manipulating LinkedIntList
+    /** The first node in the linked list */
     private ListNode front;
+    
+    /** Indicates whether the list contains a cycle */
     public boolean isLooping;
 
-    /*     
-     * Name: LinkedIntList     
-     * Parameters: None     
-     * Output: Initializes the LinkedIntList     
+    /**
+     * Constructs an empty LinkedIntList.
      */
     public LinkedIntList() {
         front = null;
     }
 
-    /*     
-     * Name: LinkedIntList     
-     * Parameters: The node (ListNode) that is at the front of the LinkedList.     
-     * Output: Initializes the LinkedIntList     
+    /**
+     * Constructs a LinkedIntList with the specified front node.
+     * 
+     * @param frontNode the node to use as the front of the list
      */
     public LinkedIntList(ListNode frontNode) {
         front = frontNode;
     }
 
-    /*     
-     * Name: LinkedIntList     
-     * Parameters: An array list of integers (from frontmost as index 0)  
-     * Output: Initializes the LinkedIntList with the array list 
+    /**
+     * Constructs a LinkedIntList from an ArrayList of integers.
+     * 
+     * @param list the ArrayList to convert to a linked list
      */
     public LinkedIntList(ArrayList<Integer> list) {
         if (list == null || list.isEmpty()) {
@@ -67,10 +62,10 @@ public class LinkedIntList implements Iterable<Integer> {
         }
     }
 
-    /*     
-     * Name: LinkedIntList     
-     * Parameters: A list of integers (from frontmost as index 0)  
-     * Output: Initializes the LinkedIntList with the list 
+    /**
+     * Constructs a LinkedIntList from an array of integers.
+     * 
+     * @param list the array to convert to a linked list
      */
     public LinkedIntList(int[] list) {
         if (list == null || list.length == 0) {
@@ -87,12 +82,11 @@ public class LinkedIntList implements Iterable<Integer> {
         }
     }
 
-
-    /*
-     * Name: hashCode
-     * Parameters: None
-     * Output: Returns the hash code for the LinkedIntList.
-     * Exceptions: Linked Int List cannot be looping.
+    /**
+     * Returns a hash code value for this list.
+     * 
+     * @return the hash code value
+     * @throws IllegalStateException if the list is looping
      */
     @Override
     public int hashCode() {
@@ -109,13 +103,13 @@ public class LinkedIntList implements Iterable<Integer> {
         return hash;
     }
 
-
-    /*     
-     * Name: map     
-     * Parameters: An IntUnaryOperator function that takes an int and returns an int.     
-     * Output: Returns a new LinkedIntList where each element is the result of applying     
-     *          the function to the corresponding element in the original list.     
-     * Exceptions: Linked Int List cannot be looping.  
+    /**
+     * Returns a new LinkedIntList where each element is the result of applying
+     * the given function to the corresponding element in this list.
+     * 
+     * @param f the function to apply to each element
+     * @return a new LinkedIntList with transformed elements
+     * @throws IllegalStateException if the list is looping
      */
     public LinkedIntList map(IntUnaryOperator f) {
         if (isLooping) {
@@ -137,11 +131,12 @@ public class LinkedIntList implements Iterable<Integer> {
         return result;
     }
 
-    /*
-     * Name: filter
-     * Parameters: An IntPredicate function that takes an int and returns a boolean.
-     * Output: Returns a new LinkedIntList containing only the elements that match the predicate.
-     * Exceptions: Linked Int List cannot be looping.
+    /**
+     * Returns a new LinkedIntList containing only elements that match the given predicate.
+     * 
+     * @param predicate the predicate to test each element
+     * @return a new LinkedIntList with filtered elements
+     * @throws IllegalStateException if the list is looping
      */
     public LinkedIntList filter(IntPredicate predicate) {
         if (isLooping) {
@@ -167,15 +162,15 @@ public class LinkedIntList implements Iterable<Integer> {
         return result;
     }
 
-    /*     
-     * Name: reduce     
-     * Parameters: An identity value and an IntBinaryOperator function that takes two ints     
-     *              and returns an int.     
-     * Output: Returns the result of applying the binary operator cumulatively to the elements     
-     *          of the list, starting with the identity value.     
-     * Exceptions: Linked Int List cannot be looping.  
+    /**
+     * Returns the result of applying the binary operator cumulatively to the elements
+     * of the list, starting with the identity value.
+     * 
+     * @param identity the initial value
+     * @param operator the binary operator to apply
+     * @return the accumulated result
+     * @throws IllegalStateException if the list is looping
      */
-
     public int reduce(int identity, IntBinaryOperator operator) {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
@@ -191,21 +186,21 @@ public class LinkedIntList implements Iterable<Integer> {
         return result;
     }
 
-    /*     
-     * Name: isEmpty     
-     * Parameters: None     
-     * Output: Returns whether the Linked Int List is empty.     
+    /**
+     * Returns whether this list is empty.
+     * 
+     * @return true if the list is empty, false otherwise
      */
     public boolean isEmpty() {
         return front == null;
     }
 
-    /*     
-     * Name: size     
-     * Parameters: None     
-     * Output: Returns the amount of nodes in the Linked Int List.     
-     * Exceptions: Linked Int List cannot be looping.  
-     */ 
+    /**
+     * Returns the number of nodes in this list.
+     * 
+     * @return the size of the list
+     * @throws IllegalStateException if the list is looping
+     */
     public int size() {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
@@ -219,12 +214,12 @@ public class LinkedIntList implements Iterable<Integer> {
         return count;
     }
 
-    /*     
-     * Name: contains     
-     * Parameters: Value you want to check that is contained at least once within     
-     *        the entire LinkedList of integers.     
-     * Output: Returns whether the value is inside the Linked Int List.
-     * Exceptions: Linked Int List cannot be looping.  
+    /**
+     * Returns whether this list contains the specified value.
+     * 
+     * @param value the value to search for
+     * @return true if the value is found, false otherwise
+     * @throws IllegalStateException if the list is looping
      */
     public boolean contains(int value) {
         if (isLooping) {
@@ -240,12 +235,11 @@ public class LinkedIntList implements Iterable<Integer> {
         return false;
     }
 
-    /*     
-     * Name: isSorted     
-     * Parameters: None     
-     * Output: Returns whether the Linked Int List is sorted by increasing     
-     *         order.     
-     * Exceptions: Linked Int List cannot be looping.  
+    /**
+     * Returns whether this list is sorted in ascending order.
+     * 
+     * @return true if sorted, false otherwise
+     * @throws IllegalStateException if the list is looping
      */
     public boolean isSorted() {
         if (isLooping) {
@@ -257,9 +251,7 @@ public class LinkedIntList implements Iterable<Integer> {
         ListNode current = front;
         int currentInt = front.data;
         while (current.next != null) {
-            //get next node            
             current = current.next;
-            //if last node is greater than current, false             
             if (currentInt > current.data) {
                 return false;
             }
@@ -268,10 +260,11 @@ public class LinkedIntList implements Iterable<Integer> {
         return true;
     }
 
-    /*     
-     * Name: isLooping
-     * Parameters: None     
-     * Output: Returns whether the Linked Int List is looping.     
+    /**
+     * Checks whether this list contains a cycle and updates the isLooping field.
+     * Uses Floyd's cycle detection algorithm.
+     * 
+     * @return true if the list is looping, false otherwise
      */
     public boolean checkLooping() {
         ListNode slow = front;
@@ -288,12 +281,11 @@ public class LinkedIntList implements Iterable<Integer> {
         return false;
     }
 
-    /*     
-     * Name: getBiggest     
-     * Parameters: None     
-     * Output: Returns the biggest number.     
-     * Exceptions: Linked Int List cannot be empty. 
-     *             Linked Int List cannot be looping.      
+    /**
+     * Returns the largest value in this list.
+     * 
+     * @return the maximum value
+     * @throws IllegalStateException if the list is empty or looping
      */
     public int getBiggest() {
         if (isLooping) {
@@ -313,12 +305,11 @@ public class LinkedIntList implements Iterable<Integer> {
         return biggest;
     }
 
-    /*     
-     * Name: getSmallest     
-     * Parameters: None     
-     * Output: Returns the smallest number.     
-     * Exceptions: Linked Int List cannot be empty.     
-     *             Linked Int List cannot be looping.  
+    /**
+     * Returns the smallest value in this list.
+     * 
+     * @return the minimum value
+     * @throws IllegalStateException if the list is empty or looping
      */
     public int getSmallest() {
         if (isLooping) {
@@ -338,13 +329,11 @@ public class LinkedIntList implements Iterable<Integer> {
         return smallest;
     }
 
-    /*     
-     * Name: getRange     
-     * Parameters: None     
-     * Output: Returns the difference between the smallest and biggest number     
-     *         in the Linked Int List.     
-     * Exceptions: Linked Int List cannot be empty.     
-     *             Linked Int List cannot be looping.  
+    /**
+     * Returns the difference between the largest and smallest values in this list.
+     * 
+     * @return the range of values
+     * @throws IllegalStateException if the list is empty or looping
      */
     public int getRange() {
         if (isLooping) {
@@ -368,11 +357,11 @@ public class LinkedIntList implements Iterable<Integer> {
         return biggest-smallest;
     }
 
-    /*     
-     * Name: getTotalSum     
-     * Parameters: None     
-     * Output: Returns the sum of all node's data.  
-     * Exceptions: Linked Int List cannot be looping.     
+    /**
+     * Returns the sum of all values in this list.
+     * 
+     * @return the total sum
+     * @throws IllegalStateException if the list is looping
      */
     public int getTotalSum() {
         if (isLooping) {
@@ -387,12 +376,14 @@ public class LinkedIntList implements Iterable<Integer> {
         return sum;
     }
 
-    /*     
-     * Name: getNode     
-     * Parameters: Index of node you want to receive.     
-     * Output: Returns node at index.     
-     * Exceptions: Linked Int List cannot be empty.     
-     *             Index has to be greater than -1
+    /**
+     * Returns the node at the specified index.
+     * 
+     * @param index the index of the node to retrieve
+     * @return the node at the specified index
+     * @throws IllegalStateException if the list is empty
+     * @throws IllegalArgumentException if index is negative
+     * @throws IndexOutOfBoundsException if index exceeds list size
      */
     public ListNode getNode(int index) {
         if (isEmpty()) {
@@ -414,21 +405,20 @@ public class LinkedIntList implements Iterable<Integer> {
         return current;
     }
 
-    /*     
-     * Name: getFront     
-     * Parameters: None     
-     * Output: Returns node at front     
+    /**
+     * Returns the first node in this list.
+     * 
+     * @return the front node
      */
     public ListNode getFront() {
         return front;
     }
 
-    /*     
-     * Name: getLast
-     * Parameters: None     
-     * Output: Returns node at end     
-     * Exceptions: It doesn't work if Linked Int List is empty.  
-     *             Linked Int List cannot be looping.     
+    /**
+     * Returns the last node in this list.
+     * 
+     * @return the last node
+     * @throws IllegalStateException if the list is empty or looping
      */
     public ListNode getLast() {
         if (isLooping) {
@@ -444,12 +434,12 @@ public class LinkedIntList implements Iterable<Integer> {
         return current;
     }
 
-    /*     
-     * Name: getMiddle     
-     * Parameters: None     
-     * Output: Returns node at middle     
-     * Exceptions: It doesn't work if Linked Int List is empty.   
-     *             Linked Int List cannot be looping.    
+    /**
+     * Returns the middle node in this list.
+     * Uses the slow/fast pointer technique.
+     * 
+     * @return the middle node
+     * @throws IllegalStateException if the list is empty or looping
      */
     public ListNode getMiddle() {
         if (isLooping) {
@@ -474,13 +464,11 @@ public class LinkedIntList implements Iterable<Integer> {
         return slow;
     }
 
-    /*     
-     * Name: getMiddleTwo     
-     * Parameters: None     
-     * Output: Returns the two nodes in the middle     
-     * Exceptions: It doesn't work if Linked Int List is empty.     
-     *             Can't get middle two of an odd numbered list.    
-     *             Linked Int List cannot be looping.  
+    /**
+     * Returns the two middle nodes in this list.
+     * 
+     * @return an array containing the two middle nodes
+     * @throws IllegalStateException if the list is empty, has odd size, or is looping
      */
     public ListNode[] getMiddleTwo() {
         if (isLooping) {
@@ -511,13 +499,13 @@ public class LinkedIntList implements Iterable<Integer> {
         };
     }
 
-    /*
-     * Name: getSubList
-     * Parameters: Two indexes (start and end)
-     * Output: Returns a new LinkedIntList from index1 to index2 inclusive.
-     * Exceptions: index1 has to be less than or equal to index2.
-     *             index1 has to be greater than or equal to 0.
-     *             index1 and index2 have to be less than the size of the list.
+    /**
+     * Returns a new LinkedIntList containing elements from the specified range.
+     * 
+     * @param index1 the starting index (inclusive)
+     * @param index2 the ending index (inclusive)
+     * @return a new sublist
+     * @throws IllegalArgumentException if indices are invalid
      */
     public LinkedIntList getSubList(int index1, int index2) {
         if (index1 > index2) {
@@ -544,10 +532,10 @@ public class LinkedIntList implements Iterable<Integer> {
         return subList;
     }
 
-    /*
-     * Name: rotate
-     * Parameters: An integer x
-     * Output: Rotates the entire list to the right by x positions.
+    /**
+     * Rotates the list to the right by the specified number of positions.
+     * 
+     * @param x the number of positions to rotate (positive for right, negative for left)
      */
     public void rotate(int x) {
         if (front == null || front.next == null) {
@@ -570,7 +558,7 @@ public class LinkedIntList implements Iterable<Integer> {
         size = size - times;
 
         int index = 0;
-        current = front; //it starts at front
+        current = front;
         while (index != times-1) {
             index++;
             current = current.next;
@@ -579,12 +567,11 @@ public class LinkedIntList implements Iterable<Integer> {
         current.next = null;
     }
 
-    /*     
-     * Name: removeDuplicates     
-     * Parameters: None     
-     * Output: Removes all duplicate values from the Linked Int List.     
-     *         Returns the number of removed nodes.     
-     * Exceptions: Linked Int List cannot be looping.  
+    /**
+     * Removes all duplicate values from this list.
+     * 
+     * @return the number of nodes removed
+     * @throws IllegalStateException if the list is looping
      */
     public int removeDuplicates() {
         if (isLooping) {
@@ -608,17 +595,22 @@ public class LinkedIntList implements Iterable<Integer> {
         return removedCount;
     }
 
-    /*     
-     * Name: setLooping     
-     * Parameters: None     
-     * Output: Sets the Linked Int List to be looping by connecting the last     
-     *         node to the front node.     
+    /**
+     * Makes this list circular by connecting the last node to the front node.
      */
     public void setLooping() {
         isLooping = true;
         getLast().next = front;
     }
 
+    /**
+     * Splits this list at the specified index into two separate lists.
+     * 
+     * @param index the index at which to split
+     * @return an array containing the two resulting lists
+     * @throws IllegalStateException if the list is looping
+     * @throws IllegalArgumentException if index is out of bounds
+     */
     public LinkedIntList[] splitAt(int index) {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
@@ -640,11 +632,10 @@ public class LinkedIntList implements Iterable<Integer> {
         return new LinkedIntList[]{list1, list2};
     }
 
-    /*     
-     * Name: reverse     
-     * Parameters: None     
-     * Output: Reverse order of Linked Int List.     
-     * Exceptions: Linked Int List cannot be looping.  
+    /**
+     * Reverses the order of elements in this list.
+     * 
+     * @throws IllegalStateException if the list is looping
      */
     public void reverse() {
         if (isLooping) {
@@ -678,11 +669,11 @@ public class LinkedIntList implements Iterable<Integer> {
         }
     }
 
-    /*
-     * Name: clone
-     * Parameters: None
-     * Output: Returns a full copy of the Linked Int List.
-     * Exceptions: Linked Int List cannot be looping.
+    /**
+     * Returns a deep copy of this list.
+     * 
+     * @return a new LinkedIntList with the same elements
+     * @throws IllegalStateException if the list is looping
      */
     public LinkedIntList clone() {
         if (isLooping) {
@@ -701,12 +692,11 @@ public class LinkedIntList implements Iterable<Integer> {
         return list;
     }
 
-    /*     
-     * Name: addSorted     
-     * Parameters: Value of the node you want to insert     
-     * Output: Inserts a node in the place it needs to be if sorted.     
-     * Exceptions: List has to be sorted in the first place.     
-     *             Linked Int List cannot be looping.  
+    /**
+     * Inserts a value into its correct position in this sorted list.
+     * 
+     * @param value the value to insert
+     * @throws IllegalStateException if the list is not sorted or is looping
      */
     public void addSorted(int value) {
         if (isLooping) {
@@ -738,12 +728,12 @@ public class LinkedIntList implements Iterable<Integer> {
         }
     }
 
-    /*
-     * Name: addAll
-     * Parameters: Other linkedIntList you want to add all values of
-     * Output: Copies other Linked Int List to end of the current list.
-     * Exceptions: Other List cannot be null.
-     *             Cannot add a looping list.
+    /**
+     * Appends all elements from another list to the end of this list.
+     * 
+     * @param other the list to append
+     * @throws IllegalArgumentException if other is null
+     * @throws UnsupportedOperationException if other is looping
      */
     public void addAll(LinkedIntList other) {
         if (other == null) {
@@ -777,12 +767,13 @@ public class LinkedIntList implements Iterable<Integer> {
         }
     }
 
-    /*     
-     * Name: swap    
-     * Parameters: Two indexes of the nodes you want to switch.
-     * Output: Switches the positions of the nodes 
-     * Exceptions: Node indexes have to be within range of the Linked Int List.
-     *             Linked Int List cannot be looping.  
+    /**
+     * Swaps the nodes at the two specified indices.
+     * 
+     * @param index1 the first index
+     * @param index2 the second index
+     * @throws IllegalStateException if the list is looping
+     * @throws IllegalArgumentException if indices are out of bounds
      */
     public void swap(int index1, int index2) {
         if (isLooping) {
@@ -835,7 +826,6 @@ public class LinkedIntList implements Iterable<Integer> {
         boolean touching = Math.abs(index1 - index2) == 1;
 
         if (eitherZero && touching) {
-            // Case 1: Swapping adjacent nodes where one is at index 0
             if (zero2) {
                 ListNode tempNode = node1, tempNext = next1;
                 node1 = node2;
@@ -850,7 +840,6 @@ public class LinkedIntList implements Iterable<Integer> {
 
             front = node2;
         } else if (eitherZero) {
-            // Case 2: Swapping non-adjacent nodes where one is at index 0
             if (zero2) {
                 ListNode tempNode = node1, tempNext = next1;
                 node1 = node2;
@@ -866,7 +855,6 @@ public class LinkedIntList implements Iterable<Integer> {
 
             front = node2;
         } else if (touching) {
-            // Case 3: Swapping adjacent nodes (neither at index 0)
             if (index2 < index1) {
                 ListNode tempNode = node1, tempNext = next1, tempPrev = prev1;
                 node1 = node2;
@@ -881,7 +869,6 @@ public class LinkedIntList implements Iterable<Integer> {
             node2.next = node1;
             prev1.next = node2;
         } else {
-            // Case 4: Swapping non-adjacent nodes (neither at index 0)
             prev1.next = node2;
             prev2.next = node1;
             ListNode temp = node1.next;
@@ -890,12 +877,12 @@ public class LinkedIntList implements Iterable<Integer> {
         }
     }
 
-    /*     
-     * Name: merge     
-     * Parameters: A LinkedIntList     
-     * Output: Appends the other list to the end of the current one     
-     * Exceptions: Other List cannot be null. 
-     *             Neither Linked Int List can be looping.    
+    /**
+     * Appends another list to the end of this list by reference.
+     * 
+     * @param other the list to merge
+     * @throws IllegalArgumentException if other is null
+     * @throws IllegalStateException if either list is looping
      */
     public void merge(LinkedIntList other) {
         if (other == null) {
@@ -911,13 +898,12 @@ public class LinkedIntList implements Iterable<Integer> {
         getLast().next = other.front;
     }
 
-    /*     
-     * Name: mergeSorted     
-     * Parameters: A LinkedIntList     
-     * Output: Merges both lists together in sorted order. 
-     * Exceptions: Other List cannot be null.     
-     *             Both lists have to be sorted.     
-     *             Neither List can be looping.   
+    /**
+     * Merges another sorted list into this sorted list while maintaining sort order.
+     * 
+     * @param other the sorted list to merge
+     * @throws IllegalArgumentException if other is null
+     * @throws IllegalStateException if either list is looping or not sorted
      */
     public void mergeSorted(LinkedIntList other) {
         if (other == null) {
@@ -931,7 +917,7 @@ public class LinkedIntList implements Iterable<Integer> {
         }
 
         if (other.front == null) {
-            return;  // nothing to merge
+            return;
         }
         if (front == null) {
             front = other.front;
@@ -969,11 +955,12 @@ public class LinkedIntList implements Iterable<Integer> {
         front = start;
     }
 
-    /*     
-     * Name: indexOf    
-     * Parameters: Value you are searching for.
-     * Output: Returns the first index of the value
-     * Exceptions: Linked Int List cannot be looping 
+    /**
+     * Returns the index of the first occurrence of the specified value.
+     * 
+     * @param value the value to search for
+     * @return the index, or -1 if not found
+     * @throws UnsupportedOperationException if the list is looping
      */
     public int indexOf(int value) {
         if (isLooping) {
@@ -991,11 +978,12 @@ public class LinkedIntList implements Iterable<Integer> {
         return -1;
     }
 
-    /*     
-     * Name: listIndexesOf   
-     * Parameters: Value you are searching for.
-     * Output: Returns all indexes of the value
-     * Exceptions: Linked Int List cannot be looping 
+    /**
+     * Returns a list of all indices where the specified value occurs.
+     * 
+     * @param value the value to search for
+     * @return an ArrayList of indices
+     * @throws UnsupportedOperationException if the list is looping
      */
     public ArrayList<Integer> listIndexesOf(int value) {
         if (isLooping) {
@@ -1014,11 +1002,12 @@ public class LinkedIntList implements Iterable<Integer> {
         return indexes;
     }
 
-    /*     
-     * Name: lastIndexOf    
-     * Parameters: Value you are searching for.
-     * Output: Returns the last index of the value
-     * Exceptions: Linked Int List cannot be looping 
+    /**
+     * Returns the index of the last occurrence of the specified value.
+     * 
+     * @param value the value to search for
+     * @return the last index, or -1 if not found
+     * @throws UnsupportedOperationException if the list is looping
      */
     public int lastIndexOf(int value) {
         if (isLooping) {
@@ -1037,12 +1026,13 @@ public class LinkedIntList implements Iterable<Integer> {
         return lastNodeIndex;
     }
 
-    /*     
-     * Name: get  
-     * Parameters: Index of node you want to receive.     
-     * Output: Returns node at index.     
-     * Exceptions: Linked Int List cannot be empty.     
-     *             Index has to be greater than -1
+/**
+     * Returns the node at the specified index.
+     * 
+     * @param index the index of the node to retrieve
+     * @return the node at the specified index
+     * @throws IllegalStateException if the list is looping
+     * @throws IllegalArgumentException if index is negative
      */
     public ListNode get(int index) {
         if (isLooping) {
@@ -1054,24 +1044,24 @@ public class LinkedIntList implements Iterable<Integer> {
         return getNode(index);
     }
 
-    /*     
-     * Name: set  
-     * Parameters: Index and value of node you want to set  
-     * Output: Returns node at index.     
-     * Exceptions: Linked Int List cannot be empty.     
-     *             Index has to be greater than -1
-     *             Index has to be reachable (non-looping)
+    /**
+     * Sets the value of the node at the specified index.
+     * 
+     * @param index the index of the node to modify
+     * @param value the new value
+     * @throws IllegalStateException if the list is empty
+     * @throws IllegalArgumentException if index is negative
+     * @throws IndexOutOfBoundsException if index exceeds list size
      */
     public void set(int index, int value) {
         getNode(index).data = value;
     }
 
-    /*     
-     * Name: addLast     
-     * Parameters: Value of the node you want to insert     
-     * Output: Attachs a new node at the end of the Linked Int List with specified     
-     *         value to the previously last node. 
-     * Exceptions: Linked Int List cannot be looping.       
+    /**
+     * Adds a new node with the specified value to the end of the list.
+     * 
+     * @param value the value to add
+     * @throws IllegalStateException if the list is looping
      */
     public void addLast(int value) {
         if (isLooping) {
@@ -1088,22 +1078,20 @@ public class LinkedIntList implements Iterable<Integer> {
         current.next = new ListNode(value);
     }
 
-    /*     
-     * Name: addFront     
-     * Parameters: Value of the node you want to insert     
-     * Output: Adds a new node at the start of the Linked Int List with specified     
-     *         value and attaches the previously first node to the new first.     
+    /**
+     * Adds a new node with the specified value to the front of the list.
+     * 
+     * @param value the value to add
      */
     public void addFront(int value) {
         front = new ListNode(value, front);
     }
 
-    /*     
-     * Name: addPenultimate
-     * Parameters: Value of the node you want to insert
-     * Output: Adds in the position of the second to last node.
-     * Exceptions: Linked Int List has to have at least 2 nodes.  
-     *             Linked Int List cannot be looping.   
+    /**
+     * Adds a new node with the specified value at the second-to-last position.
+     * 
+     * @param value the value to add
+     * @throws IllegalStateException if the list has fewer than 2 nodes or is looping
      */
     public void addPenultimate(int value) {
         if (isLooping) {
@@ -1120,15 +1108,13 @@ public class LinkedIntList implements Iterable<Integer> {
         current.next = new ListNode(value,current.next);
     }
 
-    /*     
-     * Name: addIndex     
-     * Parameters: Index of the node you want to add ( 0 = first)     
-     *        Value of the node you want to insert     
-     * Output: Connects the node at the index with specificed value specificed      
-     *         and connects it between the node before and after. If the index      
-     *         is 0 or the size of the Linked Int List, use premade functions.     
-     * Exceptions: Index has to be within range of the Linked Int List. 
-     *             Linked Int List cannot be looping.       
+    /**
+     * Inserts a new node with the specified value at the given index.
+     * 
+     * @param index the index at which to insert (0 for front)
+     * @param value the value to insert
+     * @throws IllegalStateException if the list is looping
+     * @throws IllegalArgumentException if index is out of bounds
      */
     public void addIndex(int index, int value) {
         if (isLooping) {
@@ -1150,12 +1136,11 @@ public class LinkedIntList implements Iterable<Integer> {
         current.next = new ListNode(value, current.next);
     }
     
-    /*     
-     * Name: removeFront     
-     * Parameters: None     
-     * Output: Disconnects the first node and attach the second one. Returns 
-     *         the data of the lost node.  
-     * Exceptions: List cannot be empty when removing.     
+    /**
+     * Removes and returns the first node's value.
+     * 
+     * @return the value of the removed node
+     * @throws NoSuchElementException if the list is empty
      */
     public int removeFront() {
         if (isEmpty()) {
@@ -1166,12 +1151,12 @@ public class LinkedIntList implements Iterable<Integer> {
         return data;
     }
 
-    /*     
-     * Name: removeLast     
-     * Parameters: None     
-     * Output: Disconnects the last node. Returns the data of the lost node. 
-     * Exceptions: List cannot be empty when removing.  
-     *             Linked Int List cannot be looping.      
+    /**
+     * Removes and returns the last node's value.
+     * 
+     * @return the value of the removed node
+     * @throws NoSuchElementException if the list is empty
+     * @throws IllegalStateException if the list is looping
      */
     public int removeLast() {
         if (isLooping) {
@@ -1192,24 +1177,23 @@ public class LinkedIntList implements Iterable<Integer> {
         return data;
     }
 
-    /*     
-     * Name: remove   
-     * Parameters: None  
-     * Output: Disconnects the node at the front
+    /**
+     * Removes and returns the first node's value.
+     * Alias for removeFront().
+     * 
+     * @return the value of the removed node
      */
     public int remove() {
         return removeFront();
     }
 
-    /*     
-     * Name: remove   
-     * Parameters: Index of the node you want to remove ( 0 = first)  
-     * Output: Disconnects the node at the index specificed and connects the gap     
-     *         between the node before and after. If the index is 0 or the      
-     *         size of the Linked Int List, use premade functions. Returns the
-     *         data of the lost node.    
-     * Exceptions: Index has to be within range of the Linked Int List.     
-     *             Linked Int List cannot be looping.   
+    /**
+     * Removes and returns the node at the specified index.
+     * 
+     * @param index the index of the node to remove
+     * @return the value of the removed node
+     * @throws IllegalStateException if the list is looping
+     * @throws IllegalArgumentException if index is out of bounds
      */
     public int remove(int index) {
         if (isLooping) {
@@ -1232,12 +1216,11 @@ public class LinkedIntList implements Iterable<Integer> {
         return data;
     }
 
-    /*     
-     * Name: removePenultimate
-     * Parameters: None
-     * Output: Removes the second to last node.
-     * Exceptions: Linked Int List has to have at least 2 nodes.  
-     *             Linked Int List cannot be looping.   
+    /**
+     * Removes and returns the second-to-last node's value.
+     * 
+     * @return the value of the removed node
+     * @throws IllegalStateException if the list has fewer than 2 nodes or is looping
      */
     public int removePenultimate() {
         if (isLooping) {
@@ -1249,13 +1232,12 @@ public class LinkedIntList implements Iterable<Integer> {
         return remove(size()-2);
     }
 
-    /*     
-     * Name: removeAll
-     * Parameters: Value of the nodes you want to remove
-     * Output: Removes all instances of nodes who's data is equal to the
-     *         parameter given. Returns amount of nodes removed.
-     * Exceptions: Linked Int List cannot be empty.   
-     *             Linked Int List cannot be looping.   
+    /**
+     * Removes all nodes with the specified value.
+     * 
+     * @param value the value to remove
+     * @return the number of nodes removed
+     * @throws IllegalStateException if the list is empty or looping
      */
     public int removeAll(int value) {
         if (isLooping) {
@@ -1289,13 +1271,11 @@ public class LinkedIntList implements Iterable<Integer> {
         return count;
     }
 
-    /*     
-     * Name: removeFirstValue
-     * Parameters: Value of the node you want to remove
-     * Output: Removes the first instance of a node who's data is equal to the
-     *         parameter given.
-     * Exceptions: Linked Int List cannot be empty.   
-     *             Linked Int List cannot be looping.   
+    /**
+     * Removes the first occurrence of the specified value.
+     * 
+     * @param value the value to remove
+     * @throws IllegalStateException if the list is empty or looping
      */
     public void removeFirstValue(int value) {
         if (isLooping) {
@@ -1321,12 +1301,13 @@ public class LinkedIntList implements Iterable<Integer> {
         }
     }
 
-    /*
-     * Name: removeRange
-     * Parameters: Start and end index of the range you want to remove
-     * Output: Removes all nodes in the specified range (inclusive).
-     * Exceptions: Linked Int List cannot be empty.
-     *             Linked Int List cannot be looping.
+    /**
+     * Removes all nodes in the specified range (inclusive).
+     * 
+     * @param start the starting index
+     * @param end the ending index
+     * @throws IllegalStateException if the list is looping
+     * @throws IllegalArgumentException if indices are invalid
      */
     public void removeRange(int start, int end) {
         if (isLooping) {
@@ -1357,20 +1338,18 @@ public class LinkedIntList implements Iterable<Integer> {
         current.next = temp;
     }
 
-    /*     
-     * Name: clear
-     * Parameters: None
-     * Output: Makes list empty.
+    /**
+     * Removes all nodes from the list.
      */
     public void clear() {
         front = null;
     }
 
-    /*
-     * Name: toArray
-     * Parameters: None
-     * Output: Returns the Linked Int List in the form of an array.
-     * Exceptions: Linked Int List cannot be looping.
+    /**
+     * Converts this list to an array.
+     * 
+     * @return an array containing all values in this list
+     * @throws IllegalStateException if the list is looping
      */
     public int[] toArray() {
         if (isLooping) {
@@ -1386,11 +1365,12 @@ public class LinkedIntList implements Iterable<Integer> {
         return array;
     }
 
-    /*     
-     * Name: countAmount  
-     * Parameters: Value you want to check for 
-     * Output: Returns the amount of nodes who's values are equal to your value.
-     * Exceptions: Linked Int List cannot be looping.   
+    /**
+     * Counts the number of occurrences of the specified value.
+     * 
+     * @param value the value to count
+     * @return the number of occurrences
+     * @throws IllegalStateException if the list is looping
      */
     public int countAmount(int value) {
         if (isLooping) {
@@ -1407,11 +1387,12 @@ public class LinkedIntList implements Iterable<Integer> {
         return count;
     }
 
-    /*     
-     * Name: countIf  
-     * Parameters: IntPredicate you want to check for 
-     * Output: Returns the amount of nodes that satisfy the predicate.
-     * Exceptions: Linked Int List cannot be looping.   
+    /**
+     * Counts the number of nodes that satisfy the given predicate.
+     * 
+     * @param predicate the predicate to test
+     * @return the count of matching nodes
+     * @throws IllegalStateException if the list is looping
      */
     public int countIf(IntPredicate predicate) {
         if (isLooping) {
@@ -1428,11 +1409,12 @@ public class LinkedIntList implements Iterable<Integer> {
         return count;
     }
 
-    /*
-     * Name: findFirst
-     * Parameters: IntPredicate you want to check for
-     * Output: Returns the first node that satisfies the predicate.
-     * Exceptions: Linked Int List cannot be looping.
+    /**
+     * Finds and returns the first node that satisfies the given predicate.
+     * 
+     * @param predicate the predicate to test
+     * @return the first matching node, or null if none found
+     * @throws IllegalStateException if the list is looping
      */
     public ListNode findFirst(IntPredicate predicate) {
         if (isLooping) {
@@ -1448,11 +1430,12 @@ public class LinkedIntList implements Iterable<Integer> {
         return null;
     }
 
-    /*     
-     * Name: allMatch  
-     * Parameters: IntPredicate you want to check for 
-     * Output: Returns true if all nodes satisfy the predicate, false otherwise.
-     * Exceptions: Linked Int List cannot be looping.   
+    /**
+     * Returns whether all nodes satisfy the given predicate.
+     * 
+     * @param predicate the predicate to test
+     * @return true if all nodes match, false otherwise
+     * @throws IllegalStateException if the list is looping
      */
     public boolean allMatch(IntPredicate predicate) {
         if (isLooping) {
@@ -1468,11 +1451,12 @@ public class LinkedIntList implements Iterable<Integer> {
         return true;
     }
 
-    /*     
-     * Name: anyMatch  
-     * Parameters: IntPredicate you want to check for 
-     * Output: Returns true if any node satisfies the predicate, false otherwise.
-     * Exceptions: Linked Int List cannot be looping.   
+    /**
+     * Returns whether any node satisfies the given predicate.
+     * 
+     * @param predicate the predicate to test
+     * @return true if any node matches, false otherwise
+     * @throws IllegalStateException if the list is looping
      */
     public boolean anyMatch(IntPredicate predicate) {
         if (isLooping) {
@@ -1488,11 +1472,11 @@ public class LinkedIntList implements Iterable<Integer> {
         return false;
     }
 
-    /*     
-     * Name: stutter    
-     * Parameters: None  
-     * Output: Copies list and stutters it by one.
-     * Exceptions: Linked Int List cannot be looping.   
+    /**
+     * Duplicates each node in the list.
+     * After calling this method, each value appears twice consecutively.
+     * 
+     * @throws IllegalStateException if the list is looping
      */
     public void stutter() {
         if (isLooping) {
@@ -1505,11 +1489,10 @@ public class LinkedIntList implements Iterable<Integer> {
         }
     }
 
-    /*     
-     * Name: sort   
-     * Parameters: None     
-     * Output: Sorts the list by lowest to highest  
-     * Exceptions: Linked Int List cannot be looping.   
+    /**
+     * Sorts this list in ascending order using merge sort.
+     * 
+     * @throws IllegalStateException if the list is looping
      */
     public void sort() {
         if (isLooping) {
@@ -1518,12 +1501,13 @@ public class LinkedIntList implements Iterable<Integer> {
         this.front = sort(size(), front).front;
     }
 
-    /*     
-     * Name: sort (private recursion-based helper)  
-     * Parameters: size of chunk, front of chunk  
-     * Output: First divides chunk into single bits, and reorganizes those bits.  
-     * Exceptions: size cannot be 0
-     *             tip cannot be null  
+    /**
+     * Helper method for merge sort. Recursively sorts a portion of the list.
+     * 
+     * @param size the size of the portion to sort
+     * @param tip the first node of the portion
+     * @return a new sorted LinkedIntList
+     * @throws IllegalStateException if size is 0 or tip is null
      */
     private LinkedIntList sort(int size, ListNode tip) {
         if (size == 0) {
@@ -1533,20 +1517,19 @@ public class LinkedIntList implements Iterable<Integer> {
             throw new IllegalStateException("Chunk front cannot be null.");
         }
         if (size == 1) {
-            tip.next = null;  // isolate this single node
+            tip.next = null;
             return new LinkedIntList(tip);
         }
         
         ListNode a = tip;
         ListNode current = tip;
         
-        // Stop one node BEFORE the midpoint
         for (int i = 0; i < size/2 - 1; i++) {
             current = current.next;
         }
         
-        ListNode b = current.next;  // second half starts here
-        current.next = null;        // SEVER the link between halves
+        ListNode b = current.next;
+        current.next = null;
         
         if (size % 2 == 0) {
             LinkedIntList a1 = sort(size/2, a);
@@ -1561,10 +1544,10 @@ public class LinkedIntList implements Iterable<Integer> {
         }
     }
 
-    /*     
-     * Name: iterator
-     * Parameters: None     
-     * Output: Used for for-each loops and such.
+    /**
+     * Returns an iterator over the elements in this list.
+     * 
+     * @return an Iterator for this list
      */
     @Override
     public Iterator<Integer> iterator() {
@@ -1580,43 +1563,43 @@ public class LinkedIntList implements Iterable<Integer> {
         };
     }
 
-    /*
-    * Name: retainAll
-    * Parameters: IntPredicate you want to check for
-    * Output: Returns true if all nodes satisfy the predicate, false otherwise.
-    * Exceptions: Linked Int List cannot be looping.
-    */
-   public boolean retainAll(IntPredicate predicate) {
-       if (isLooping) {
-           throw new IllegalStateException("Linked Int List cannot be looping.");
-       }
-       boolean changed = false;
-       ListNode current = front;
-       ListNode prev = null;
-       while (current != null) {
-           if (!predicate.test(current.data)) {
-               // Remove current node
-               if (prev == null) {
-                   front = current.next;
-               } else {
-                   prev.next = current.next;
-               }
-               changed = true;
-           } else {
-               prev = current;
-           }
-           current = current.next;
-       }
-       return changed;
-   }
+    /**
+     * Retains only the nodes that satisfy the given predicate.
+     * 
+     * @param predicate the predicate to test
+     * @return true if the list was modified, false otherwise
+     * @throws IllegalStateException if the list is looping
+     */
+    public boolean retainAll(IntPredicate predicate) {
+        if (isLooping) {
+            throw new IllegalStateException("Linked Int List cannot be looping.");
+        }
+        boolean changed = false;
+        ListNode current = front;
+        ListNode prev = null;
+        while (current != null) {
+            if (!predicate.test(current.data)) {
+                if (prev == null) {
+                    front = current.next;
+                } else {
+                    prev.next = current.next;
+                }
+                changed = true;
+            } else {
+                prev = current;
+            }
+            current = current.next;
+        }
+        return changed;
+    }
 
-   /*
-    * Name: mergeCommon
-    * Parameters: A LinkedIntList
-    * Output: Modifies the current list to retain only elements present in both lists.
-    * Exceptions: Other List cannot be null.
-    *             Neither Linked Int List can be looping.
-    */
+    /**
+     * Modifies this list to retain only elements present in both lists.
+     * 
+     * @param other the list to compare with
+     * @throws IllegalArgumentException if other is null
+     * @throws IllegalStateException if either list is looping
+     */
     public void mergeCommon(LinkedIntList other) {
         if (other == null) {
             throw new IllegalArgumentException("Other list cannot be null.");
@@ -1649,13 +1632,13 @@ public class LinkedIntList implements Iterable<Integer> {
         }
     }
 
-    /*
-    * Name: removeAnd
-    * Parameters: A LinkedIntList
-    * Output: Modifies the current list to remove elements present in the other list.
-    * Exceptions: Other List cannot be null.
-    *             Neither Linked Int List can be looping.
-    */
+    /**
+     * Removes all elements from this list that are present in the other list.
+     * 
+     * @param other the list containing values to remove
+     * @throws IllegalArgumentException if other is null
+     * @throws IllegalStateException if either list is looping
+     */
     public void removeCommon(LinkedIntList other) {
         if (other == null) {
             throw new IllegalArgumentException("Other list cannot be null.");
@@ -1688,13 +1671,14 @@ public class LinkedIntList implements Iterable<Integer> {
         }
     }
 
-    /*
-    * Name: intersection
-    * Parameters: A LinkedIntList
-    * Output: Returns a new LinkedIntList containing elements common to both lists.
-    * Exceptions: Other List cannot be null.
-    *             Neither Linked Int List can be looping.
-    */
+    /**
+     * Returns a new list containing elements common to both lists.
+     * 
+     * @param other the list to intersect with
+     * @return a new LinkedIntList containing the intersection
+     * @throws IllegalArgumentException if other is null
+     * @throws IllegalStateException if either list is looping
+     */
     public LinkedIntList intersection(LinkedIntList other) {
         if (other == null) {
             throw new IllegalArgumentException("Other list cannot be null.");
@@ -1729,21 +1713,19 @@ public class LinkedIntList implements Iterable<Integer> {
         return result;
     }
 
-    /*     
-     * Name: partition  
-     * Parameters: IntPredicate
-     * Output: Partitions the list into two lists based on the predicate.
-     * Exceptions: Linked Int List cannot be looping.
-     *             Output lists cannot be null.   
+    /**
+     * Partitions this list so that nodes not satisfying the predicate come first,
+     * followed by nodes that do satisfy the predicate.
+     * 
+     * @param predicate the predicate used to partition
+     * @throws IllegalStateException if the list is looping
      */
     public void partition(IntPredicate predicate) {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
 
-        //First part of list does not satisfy predicate
         LinkedIntList list1 = new LinkedIntList();
-        //Second part of list satisfies predicate
         LinkedIntList list2 = new LinkedIntList();
         ListNode current = front;       
         while (current != null) {
@@ -1758,13 +1740,14 @@ public class LinkedIntList implements Iterable<Integer> {
         front = list1.front;
     }
 
-    /*     
-    * Name: equals
-    * Parameters: Object obj - the object to compare with this LinkedIntList     
-    * Output: Returns true if obj is a LinkedIntList with the same value sequence,
-    *         false otherwise. For looping lists, checks that loops occur at 
-    *         corresponding positions in the value sequence.
-    */
+    /**
+     * Compares this list with another object for equality.
+     * Two lists are equal if they contain the same sequence of values.
+     * For looping lists, loops must occur at corresponding positions.
+     * 
+     * @param obj the object to compare with
+     * @return true if the lists are equal, false otherwise
+     */
     @Override
     public boolean equals(Object obj) {
         if (obj == this) {
@@ -1788,43 +1771,33 @@ public class LinkedIntList implements Iterable<Integer> {
             return false;
         }
         
-        // Initialize pointers to traverse both lists
         ListNode current = front;
         ListNode currentOther = other.front;
         
-        // Handle looping lists
         if (isLooping && other.isLooping) {
-            // Track visit counts for each node to detect when we complete one cycle
             HashMap<ListNode, Integer> visited = new HashMap<>();
             HashMap<ListNode, Integer> visitedOther = new HashMap<>();
             
             while (true) {
-                // Record visits to current nodes
                 visited.put(current, visited.getOrDefault(current, 0) + 1);
                 visitedOther.put(currentOther, visitedOther.getOrDefault(currentOther, 0) + 1);
                 
-                // Check if both lists loop back at the same relative position
                 if (visited.get(current) != visitedOther.get(currentOther)) {
-                    return false; // Loops occur at different points in the sequence
+                    return false;
                 }
                 
-                // Check if values match at current position
                 if (current.data != currentOther.data) {
                     return false;
                 }
                 
-                // Stop after completing one full cycle in both lists
                 if (visited.get(current) == 2) {
                     break;
                 }
                 
-                // Advance to next nodes
                 current = current.next;
                 currentOther = currentOther.next;
             }
         } else {
-            // Handle non-looping lists
-            // Traverse both lists simultaneously, comparing values
             while (current != null && currentOther != null) {
                 if (current.data != currentOther.data) {
                     return false;
@@ -1833,7 +1806,6 @@ public class LinkedIntList implements Iterable<Integer> {
                 currentOther = currentOther.next;
             }
             
-            // Ensure both lists ended at the same time (same length)
             if (current != null || currentOther != null) {
                 return false;
             }
@@ -1842,14 +1814,15 @@ public class LinkedIntList implements Iterable<Integer> {
         return true;
     }
 
-    /*     
-     * Name: toString     
-     * Parameters: None     
-     * Output: Returns an easy to understand format of the contents of the     
-     *         Linked Int List.  
-     * Exceptions: Linked Int List cannot be looping.   
+    /**
+     * Returns a string representation of this list.
+     * Format: "value1 -> value2 -> ... -> null" or "empty" if empty.
+     * 
+     * @return a string representation of the list
+     * @throws IllegalStateException if the list is looping
      */
-    @Override public String toString() {
+    @Override 
+    public String toString() {
         if (isLooping) {
             throw new IllegalStateException("Linked Int List cannot be looping.");
         }
