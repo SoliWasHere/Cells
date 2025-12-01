@@ -646,6 +646,7 @@ public class LinkedIntList implements Iterable<Integer> {
                 ListNode hold = front;
                 front = front.next;
                 hold.next = null;
+                last = hold;
                 return;
             default:
                 ListNode temp0 = front;
@@ -1297,6 +1298,7 @@ public class LinkedIntList implements Iterable<Integer> {
         while (front!= null && front.data == value) {
             front = front.next;
             count++;
+            size--;
         }
 
         if (front == null) {
@@ -1333,6 +1335,10 @@ public class LinkedIntList implements Iterable<Integer> {
 
         if (front.data == value) {
             front = front.next;
+            if (front == null) {
+                last = null;
+            }
+            size--;
             return;
         }
 
@@ -1340,13 +1346,15 @@ public class LinkedIntList implements Iterable<Integer> {
         while (current.next != null) {
             if (current.next.data == value) {
                 current.next = current.next.next;
+                if (current.next == null) {
+                    last = current;
+                }
+                size--;
                 return;
             } else {
                 current = current.next;
             }
         }
-        last = current;
-        size--;
     }
 
     /**
@@ -1688,6 +1696,11 @@ public class LinkedIntList implements Iterable<Integer> {
             size--;
         }
 
+        if (front == null) {  // Add this check
+            last = null;
+            return;
+        }
+
         ListNode current = front;
         while (current.next != null) {
             if (!otherValues.contains(current.next.data)) {
@@ -1730,6 +1743,11 @@ public class LinkedIntList implements Iterable<Integer> {
             size--;
         }
 
+        if (front == null) {
+            last = null;
+            return;
+        }
+    
         ListNode current = front;
         while (current.next != null) {
             if (otherValues.contains(current.next.data)) {
